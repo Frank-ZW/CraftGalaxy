@@ -1,0 +1,9 @@
+name: LobbyCore
+main: net.craftgalaxy.lobbycore.LobbyCore
+version: ${project.version}
+api-version: 1.16
+author: Frank
+depend: [MinigameService]
+commands:
+  npcplay:
+    description: NPC command to force players to run a Bungee command.

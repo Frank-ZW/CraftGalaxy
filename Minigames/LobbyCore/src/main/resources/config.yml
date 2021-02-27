@@ -1,0 +1,4 @@
+socket-settings:
+  bungee-server-name: minigames
+  host-name: "127.0.0.1"
+  port-number: 5627
