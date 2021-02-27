@@ -1,0 +1,4 @@
+name: MinigameService
+main: net.craftgalaxy.minigameservice.bungee.BungeeService
+author: Frank
+version: ${project.version}

@@ -1,0 +1,6 @@
+name: MinigameService
+main: net.craftgalaxy.minigameservice.bukkit.BukkitService
+version: ${project.version}
+api-version: 1.16
+load: POSTWORLD
+author: Frank
