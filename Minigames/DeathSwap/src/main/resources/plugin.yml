@@ -1,0 +1,6 @@
+name: DeathSwap
+main: net.craftgalaxy.deathswap.DeathSwap
+version: ${project.version}
+api-version: 1.16
+author: Frank
+depend: [Vault, MinigameService]
