@@ -1,0 +1,7 @@
+name: Manhunt
+version: ${project.version}
+api-version: 1.16
+main: net.craftgalaxy.manhunt.ManhuntCore
+author: Frank
+load: POSTWORLD
+depend: [MinigameService, Vault]
