@@ -1,0 +1,9 @@
+name: Mavic
+version: ${project.version}
+main: net.craftgalaxy.mavic.Mavic
+api-version: 1.16
+author: Frank
+depend: [ProtocolLib]
+commands:
+  mavic:
+    description: Root command for the Mavic anticheat.
