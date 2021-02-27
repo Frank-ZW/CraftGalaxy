@@ -1,0 +1,8 @@
+socket-settings:
+  host_name: '127.0.0.1'
+  port_number: 5626
+  bungeecord-server-name: towny
+
+chat-settings:
+  slow-mode-cooldown: 3
+  blacklisted-words: []

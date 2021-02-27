@@ -1,0 +1,9 @@
+name: GalaxyCore
+version: ${project.version}
+main: net.craftgalaxy.galaxycore.bukkit.CorePlugin
+author: Frank
+api-version: 1.16
+softdepend:
+  - Towny
+  - TownyChat
+  - mcMMO

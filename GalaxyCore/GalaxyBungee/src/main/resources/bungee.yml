@@ -1,0 +1,4 @@
+name: GalaxyCore
+main: net.craftgalaxy.galaxycore.bungee.BungeePlugin
+version: ${project.version}
+author: Frank

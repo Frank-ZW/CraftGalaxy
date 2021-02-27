@@ -1,0 +1,9 @@
+socket-settings:
+  host-name: 127.0.0.1
+  port-number: 5266
+
+server-settings:
+  fall-back-servers:
+    - main
+    - towny
+    - minigames
