@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="MinigameService" />
+        <module name="GalaxyBungee" />
+        <module name="Manhunt" />
+        <module name="MinigameCore" />
+        <module name="BungeeCore" />
+        <module name="CorePackets" />
+        <module name="LobbyCore" />
+        <module name="DeathSwap" />
+        <module name="Mavic" />
+        <module name="GalaxyBukkit" />
+        <module name="AsyncWilderness" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="AsyncWilderness" target="11" />
+      <module name="BungeeCore" target="11" />
+      <module name="CorePackets" target="11" />
+      <module name="DeathSwap" target="11" />
+      <module name="GalaxyBukkit" target="11" />
+      <module name="GalaxyBungee" target="11" />
+      <module name="GalaxyCore" target="11" />
+      <module name="LobbyCore" target="11" />
+      <module name="LockOut" target="11" />
+      <module name="Manhunt" target="11" />
+      <module name="Mavic" target="11" />
+      <module name="MinigameCore" target="11" />
+      <module name="Minigames" target="11" />
+      <module name="MinigameService" target="11" />
+      <module name="ZombieApocalypse" target="11" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

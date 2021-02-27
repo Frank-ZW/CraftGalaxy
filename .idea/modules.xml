@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/AsyncWilderness/AsyncWilderness.iml" filepath="$PROJECT_DIR$/AsyncWilderness/AsyncWilderness.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/BungeeCore/BungeeCore.iml" filepath="$PROJECT_DIR$/Minigames/BungeeCore/BungeeCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GalaxyCore/CorePackets/CorePackets.iml" filepath="$PROJECT_DIR$/GalaxyCore/CorePackets/CorePackets.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/CraftGalaxy Workspace.iml" filepath="$PROJECT_DIR$/.idea/CraftGalaxy Workspace.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/DeathSwap/DeathSwap.iml" filepath="$PROJECT_DIR$/Minigames/DeathSwap/DeathSwap.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GalaxyCore/GalaxyBukkit/GalaxyBukkit.iml" filepath="$PROJECT_DIR$/GalaxyCore/GalaxyBukkit/GalaxyBukkit.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GalaxyCore/GalaxyBungee/GalaxyBungee.iml" filepath="$PROJECT_DIR$/GalaxyCore/GalaxyBungee/GalaxyBungee.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GalaxyCore/GalaxyCore.iml" filepath="$PROJECT_DIR$/GalaxyCore/GalaxyCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/LobbyCore/LobbyCore.iml" filepath="$PROJECT_DIR$/Minigames/LobbyCore/LobbyCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/Manhunt/Manhunt.iml" filepath="$PROJECT_DIR$/Minigames/Manhunt/Manhunt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Mavic/Mavic.iml" filepath="$PROJECT_DIR$/Mavic/Mavic.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/MinigameCore/MinigameCore.iml" filepath="$PROJECT_DIR$/Minigames/MinigameCore/MinigameCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/MinigameService/MinigameService.iml" filepath="$PROJECT_DIR$/Minigames/MinigameService/MinigameService.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/Minigames.iml" filepath="$PROJECT_DIR$/Minigames/Minigames.iml" />
+    </modules>
+  </component>
+</project>
