@@ -1,0 +1,16 @@
+minigame-game-key: 0
+
+socket-settings:
+  port-number: 5627
+
+server-settings:
+  main-lobbies:
+    - main
+  minigame-lobbies:
+    - minigames
+  minigames:
+    - mini1A
+    - mini1B
+    - mini1C
+  specialized:
+    - towny

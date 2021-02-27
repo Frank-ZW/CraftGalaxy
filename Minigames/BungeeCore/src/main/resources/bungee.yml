@@ -1,0 +1,5 @@
+name: BungeeCore
+main: net.craftgalaxy.bungeecore.BungeeCore
+version: ${project.version}
+author: Frank
+depends: [MinigameService]
