@@ -1,0 +1,12 @@
+name: MinigameCore
+main: net.craftgalaxy.minigamecore.MinigameCore
+version: ${project.version}
+api-version: 1.16
+author: Frank
+depend: [MinigameService, Manhunt, DeathSwap]
+load: POSTWORLD
+commands:
+  leave:
+    description: Leave a minigame
+  gamekey:
+    description: View the game key of a minigame

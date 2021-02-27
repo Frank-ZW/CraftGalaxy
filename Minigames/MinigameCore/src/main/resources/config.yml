@@ -1,0 +1,10 @@
+socket-settings:
+  bungee-server-name: minigame1A
+  host-name: "127.0.0.1"
+  port-number: 5627
+
+lobby-location-settings:
+  world-name: world
+  X: 0
+  Y: -1
+  Z: 0
