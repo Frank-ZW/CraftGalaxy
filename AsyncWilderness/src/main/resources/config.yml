@@ -1,0 +1,16 @@
+teleportation-settings:
+  tries: 18
+  spawn-particles: true
+  play-enderman-sound: true
+
+world-settings:
+  name: earth
+  x1: 2048
+  z1: 1024
+  x2: 64511
+  z2: 30207
+
+cooldowns:
+  default-in-seconds: 259200
+  donator-in-seconds: 129600
+  initial-teleport-duration: 259200

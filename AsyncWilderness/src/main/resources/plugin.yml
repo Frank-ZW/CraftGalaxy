@@ -1,0 +1,11 @@
+name: AsyncWilderness
+main: net.craftgalaxy.asyncwilderness.AsyncWilderness
+version: ${project.version}
+api-version: 1.16
+author: Frank
+load: POSTWORLD
+commands:
+  rtp:
+    description: Randomly teleport across the world.
+  asyncwild:
+    description: Reload the plugin.
