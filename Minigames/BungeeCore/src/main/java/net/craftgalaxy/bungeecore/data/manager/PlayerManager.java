@@ -7,15 +7,13 @@ import net.md_5.bungee.api.scheduler.TaskScheduler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class PlayerManager {
 
 
 	private final BungeeCore plugin;
+	private final Set<UUID> actives = new HashSet<>();
 	private final Map<UUID, PlayerData> players = new HashMap<>();
 	private final TaskScheduler scheduler;
 	private static PlayerManager instance;
@@ -38,6 +36,7 @@ public class PlayerManager {
 			}
 
 			instance.players.clear();
+			instance.actives.clear();
 			instance = null;
 		}
 	}
@@ -47,6 +46,10 @@ public class PlayerManager {
 	}
 
 	public void addPlayer(@NotNull ProxiedPlayer player) {
+		if (!this.actives.remove(player.getUniqueId())) {
+			player.connect(this.plugin.getMainLobby());
+		}
+
 		this.players.put(player.getUniqueId(), new PlayerData(player));
 	}
 
@@ -55,7 +58,10 @@ public class PlayerManager {
 	}
 
 	public void removePlayer(@NotNull UUID uniqueId) {
-		this.players.remove(uniqueId);
+		PlayerData playerData = this.players.remove(uniqueId);
+		if (playerData != null && playerData.isPlaying()) {
+			this.actives.add(uniqueId);
+		}
 	}
 
 	@Nullable

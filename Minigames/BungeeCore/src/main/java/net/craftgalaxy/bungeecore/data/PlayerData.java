@@ -64,4 +64,23 @@ public class PlayerData {
 	public void setSpectating(boolean spectating) {
 		this.spectating = spectating;
 	}
+
+	@Override
+	public int hashCode() {
+		return 13 + this.uniqueId.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+
+		if (!(obj instanceof PlayerData)) {
+			return false;
+		}
+
+		PlayerData o = (PlayerData) obj;
+		return this.uniqueId.equals(o.getUniqueId());
+	}
 }
