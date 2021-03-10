@@ -18,12 +18,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Set;
 import java.util.UUID;
 
 public class ServerSocketData implements Runnable {
 
 	private final BungeeCore plugin;
 	private final Socket socket;
+	private final int id;
 	private ServerInfo server;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
@@ -32,9 +34,12 @@ public class ServerSocketData implements Runnable {
 	private Minigames minigame;
 	private ServerStatus status;
 
-	public ServerSocketData(Socket socket) {
+	public ServerSocketData(Socket socket, int id) {
 		this.plugin = BungeeCore.getInstance();
 		this.socket = socket;
+		this.id = id;
+		this.minigame = Minigames.INACTIVE;
+		this.status = ServerStatus.INACTIVE;
 	}
 
 	public void connect(@NotNull String serverName) {
@@ -83,10 +88,6 @@ public class ServerSocketData implements Runnable {
 		return ++this.players;
 	}
 
-	public int decrementPlayers() {
-		return --this.players;
-	}
-
 	public String getServerName() {
 		return this.server == null ? "Invalid Server" : this.server.getName();
 	}
@@ -107,7 +108,6 @@ public class ServerSocketData implements Runnable {
 		PlayerData senderData = PlayerManager.getInstance().getPlayerData(sender);
 		if (senderData != null) {
 			this.sendPacket(new PacketPlayOutQueuePlayer(sender.getUniqueId()));
-			senderData.setPlayerStatus(false, true, false);
 			this.sendServer(sender);
 		}
 	}
@@ -115,6 +115,10 @@ public class ServerSocketData implements Runnable {
 	public void sendPacket(@NotNull MinigamePacketPlayOut packet) throws IOException {
 		this.output.writeObject(packet);
 		this.output.flush();
+	}
+
+	public int getId() {
+		return this.id;
 	}
 
 	@SuppressWarnings("InfiniteLoopStatement")
@@ -141,34 +145,29 @@ public class ServerSocketData implements Runnable {
 					this.disconnect();
 				} else if (object instanceof PacketPlayInStartCountdown) {
 					PacketPlayInStartCountdown packet = (PacketPlayInStartCountdown) object;
-					for (UUID uniqueId : packet.getPlayers()) {
-						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
-						if (playerData != null) {
-							playerData.setPlayerStatus(false, true, false);
-						}
-					}
-
 					ServerManager.getInstance().addActiveServer(this, packet.getGameKey());
 				} else if (object instanceof PacketPlayInStartTeleport) {
 					PacketPlayInStartTeleport packet = (PacketPlayInStartTeleport) object;
 					for (UUID uniqueId : packet.getPlayers()) {
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
 						if (playerData != null) {
-							playerData.setPlayerStatus(true, false, false);
+							playerData.setPlayerStatus(PlayerData.PlayerStatus.PLAYING);
 						}
 					}
 
 					this.status = ServerStatus.IN_PROGRESS;
 				} else if (object instanceof PacketPlayInEndTeleport) {
 					PacketPlayInEndTeleport packet = (PacketPlayInEndTeleport) object;
-					for (UUID uniqueId : packet.getPlayers()) {
+					Set<UUID> players = packet.getPlayers();
+					for (UUID uniqueId : players) {
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
 						if (playerData != null) {
 							playerData.getPlayer().connect(this.plugin.getMinigameLobby());
-							playerData.setPlayerStatus(false, false, false);
+							playerData.setPlayerStatus(PlayerData.PlayerStatus.INACTIVE);
 						}
 					}
 
+					PlayerManager.getInstance().removeDisconnection(players);
 					ServerManager.getInstance().addInactiveServer(this);
 				} else if (object instanceof PacketPlayInPlayerConnect) {
 					PacketPlayInPlayerConnect packet = (PacketPlayInPlayerConnect) object;
@@ -183,16 +182,7 @@ public class ServerSocketData implements Runnable {
 					PlayerData playerData = PlayerManager.getInstance().getPlayerData(packet.getPlayer());
 					if (playerData != null) {
 						playerData.getPlayer().connect(this.plugin.getMinigameLobby());
-						playerData.setPlayerStatus(false, false, false);
-						if (this.maxPlayers != packet.getMaxPlayers()) {
-							this.plugin.getLogger().warning(this.getServerName() + " had mismatched max players: bungee " + this.maxPlayers + " vs. actual " + packet.getMaxPlayers() + ". This issue is minor and can be safely ignored, however contact the developer to fix this.");
-							this.maxPlayers = packet.getMaxPlayers();
-						}
-
-						if (this.decrementPlayers() != packet.getMinigamePlayers()) {
-							this.plugin.getLogger().warning(this.getServerName() + " had mismatched player count: bungee " + this.players + " vs. actual " + packet.getMinigamePlayers() + ". This issue is minor and can be safely ignored, however contact the developer to fix this.");
-							this.players = packet.getMinigamePlayers();
-						}
+						playerData.setPlayerStatus(PlayerData.PlayerStatus.INACTIVE);
 					}
 				} else if (object instanceof PacketPlayInServerQueue) {
 					PacketPlayInServerQueue packet = (PacketPlayInServerQueue) object;
@@ -203,7 +193,7 @@ public class ServerSocketData implements Runnable {
 						this.plugin.getLogger().info(ChatColor.GREEN + this.getServerName() + " has been re-added to the minigame queue.");
 					}
 				} else if (object instanceof PacketPlayInDecrementPlayerCount) {
-					this.decrementPlayers();
+					this.players--;
 				} else if (object instanceof PacketPlayInRequestDisconnect) {
 					PacketPlayInRequestDisconnect packet = (PacketPlayInRequestDisconnect) object;
 					for (UUID uniqueId : packet.getPlayers()) {
@@ -216,7 +206,7 @@ public class ServerSocketData implements Runnable {
 						player.sendMessage(new TextComponent(ChatColor.GREEN + "The server you were on has unexpectedly shutdown. You have been teleported back to the minigame lobby."));
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(player);
 						if (playerData != null) {
-							playerData.setPlayerStatus(false, false, false);
+							playerData.setPlayerStatus(PlayerData.PlayerStatus.INACTIVE);
 						}
 					}
 
@@ -230,6 +220,19 @@ public class ServerSocketData implements Runnable {
 					} else {
 						this.plugin.getLogger().warning("Failed to retrieve a player in the proxy with the name " + packet.getPlayer());
 					}
+				} else if (object instanceof PacketPlayInUpdatePlayerCount) {
+					PacketPlayInUpdatePlayerCount packet = (PacketPlayInUpdatePlayerCount) object;
+					this.players = packet.getPlayers();
+					this.maxPlayers = packet.getMaxPlayers();
+				} else if (object instanceof PacketPlayInUpdatePlayerStatus) {
+					PacketPlayInUpdatePlayerStatus packet = (PacketPlayInUpdatePlayerStatus) object;
+					PlayerData playerData = PlayerManager.getInstance().getPlayerData(packet.getUniqueId());
+					if (playerData != null) {
+						playerData.setPlayerStatus(PlayerData.PlayerStatus.values()[packet.getStatus() % 4]);
+					}
+				} else if (object instanceof PacketPlayInDisconnectRemove) {
+					PacketPlayInDisconnectRemove packet = (PacketPlayInDisconnectRemove) object;
+					PlayerManager.getInstance().removeDisconnection(packet.getUniqueId());
 				} else {
 					this.plugin.getLogger().warning("Received unknown Minigame packet with " + object.getClass().getName() + ". This warning can most likely be safely ignored.");
 				}
@@ -278,5 +281,24 @@ public class ServerSocketData implements Runnable {
 		public String getDisplayName() {
 			return this.displayName;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return 43 * this.id;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+
+		if (!(obj instanceof ServerSocketData)) {
+			return false;
+		}
+
+		ServerSocketData o = (ServerSocketData) obj;
+		return this.id == o.getId();
 	}
 }

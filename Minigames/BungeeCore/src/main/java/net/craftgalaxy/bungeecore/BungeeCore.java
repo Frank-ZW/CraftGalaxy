@@ -2,7 +2,6 @@ package net.craftgalaxy.bungeecore;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import net.craftgalaxy.bungeecore.command.CoreCommand;
 import net.craftgalaxy.bungeecore.command.ForceEndCommand;
 import net.craftgalaxy.bungeecore.command.PlayCommand;
 import net.craftgalaxy.bungeecore.data.manager.PlayerManager;
@@ -38,7 +37,7 @@ public final class BungeeCore extends Plugin {
 	private AtomicInteger gameKey;
 	private int portNumber;
 
-	private final List<Command> commands = ImmutableList.of(new PlayCommand(this), new CoreCommand(this), new ForceEndCommand(this));
+	private final List<Command> commands = ImmutableList.of(new PlayCommand(this), new ForceEndCommand(this));
 	private final List<Listener> listeners = ImmutableList.of(new PlayerListener());
 
 	private static BungeeCore instance;
@@ -46,12 +45,12 @@ public final class BungeeCore extends Plugin {
 	@Override
 	public void onEnable() {
 		instance = this;
-		boolean success = this.readConfig(true);
+		boolean failed = this.readConfig(true);
 		this.registerCommands();
 		this.registerListeners();
 		PlayerManager.enable(this);
 		ServerManager.getInstance();
-		if (!success) {
+		if (failed) {
 			this.onDisable();
 		}
 	}
@@ -116,7 +115,7 @@ public final class BungeeCore extends Plugin {
 
 	public boolean readConfig(boolean saveDefaultConfig) {
 		if (saveDefaultConfig && !this.saveDefaultConfig()) {
-			return false;
+			return true;
 		}
 
 		try {
@@ -129,13 +128,13 @@ public final class BungeeCore extends Plugin {
 
 			this.gameKey = new AtomicInteger(this.config.getInt("minigame-game-key"));
 			this.portNumber = this.config.getInt("socket-settings.port-number");
-			return true;
+			return false;
 		} catch (IOException e) {
 			e.printStackTrace();
-			return false;
+			return true;
 		} catch (NumberFormatException e) {
 			this.getLogger().warning("Failed to read in a number from the config file. Please check to make sure all values entered in the config.yml file are whole numbers.");
-			return false;
+			return true;
 		}
 	}
 

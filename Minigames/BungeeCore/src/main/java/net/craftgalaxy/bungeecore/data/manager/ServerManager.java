@@ -4,6 +4,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Iterables;
 import net.craftgalaxy.bungeecore.BungeeCore;
+import net.craftgalaxy.bungeecore.data.PlayerData;
 import net.craftgalaxy.bungeecore.data.ServerSocketData;
 import net.craftgalaxy.minigameservice.bungee.StringUtil;
 import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutCreateMinigame;
@@ -18,17 +19,19 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ServerManager {
 
 	private final BungeeCore plugin;
-	private final Map<String, ServerSocketData> lobbies = new HashMap<>();
-	private final Map<String, ServerSocketData> minigames = new HashMap<>();
-	private final Queue<ServerSocketData> inactives = new LinkedList<>();
-	private final Map<ServerSocketData.Minigames, Map<Integer, Set<ServerSocketData>>> queued = new HashMap<>();
-	private final Set<ServerSocketData> actives = new HashSet<>();
-	private final Set<ServerSocketData> confirmations = new HashSet<>();
-	private final BiMap<Integer, ServerSocketData> gameKeys = HashBiMap.create();
+	private final AtomicInteger serverUniqueId = new AtomicInteger();
+	private Map<String, ServerSocketData> lobbies = new HashMap<>();
+	private Map<String, ServerSocketData> minigames = new HashMap<>();
+	private Queue<ServerSocketData> inactives = new LinkedList<>();
+	private Map<ServerSocketData.Minigames, Map<Integer, Set<ServerSocketData>>> queued = new HashMap<>();
+	private Set<ServerSocketData> actives = new HashSet<>();
+	private Set<ServerSocketData> confirmations = new HashSet<>();
+	private BiMap<Integer, ServerSocketData> gameKeys = HashBiMap.create();
 	private final Random random = new Random();
 	private final TaskScheduler scheduler;
 	private ServerSocket serverSocket;
@@ -42,12 +45,16 @@ public class ServerManager {
 			try {
 				this.serverSocket = new ServerSocket(this.plugin.getPortNumber());
 				while (!this.finished) {
-					this.scheduler.runAsync(this.plugin, new ServerSocketData(this.serverSocket.accept()));
+					this.scheduler.runAsync(this.plugin, new ServerSocketData(this.serverSocket.accept(), this.serverUniqueId.incrementAndGet()));
 				}
-
-				this.serverSocket.close();
 			} catch (IOException e) {
 				e.printStackTrace();
+			} finally {
+				try {
+					this.serverSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		});
 	}
@@ -58,11 +65,19 @@ public class ServerManager {
 			instance.minigames.values().forEach(ServerSocketData::disconnect);
 			instance.lobbies.values().forEach(ServerSocketData::disconnect);
 			instance.lobbies.clear();
+			instance.gameKeys.clear();
 			instance.minigames.clear();
 			instance.inactives.clear();
 			instance.queued.clear();
 			instance.actives.clear();
 			instance.confirmations.clear();
+			instance.lobbies = null;
+			instance.minigames = null;
+			instance.gameKeys = null;
+			instance.inactives = null;
+			instance.actives = null;
+			instance.queued = null;
+			instance.confirmations = null;
 			instance = null;
 		}
 	}
@@ -82,12 +97,12 @@ public class ServerManager {
 
 		if (this.plugin.isLobbyServer(serverName)) {
 			this.lobbies.put(serverName, serverData);
-			this.plugin.getLogger().info(ChatColor.GREEN + "Established underlying TCP socket connection with the " + serverName + " lobby. This server can now send packets to the proxy.");
 		} else {
 			this.minigames.put(serverName, serverData);
 			this.inactives.add(serverData);
-			this.plugin.getLogger().info(ChatColor.GREEN + "Established underlying TCP socket connection with " + serverName + ". This server can now communicate with the proxy.");
 		}
+
+		this.plugin.getLogger().info(ChatColor.GREEN + "Established underlying TCP socket connection with " + serverName + ". This server can now communicate with the proxy.");
 	}
 
 	/**
@@ -101,19 +116,19 @@ public class ServerManager {
 		this.minigames.remove(serverData.getServerName());
 		this.inactives.remove(serverData);
 		this.confirmations.remove(serverData);
-		Map<Integer, Set<ServerSocketData>> specificMinigames = this.queued.remove(serverData.getMinigame());
-		if (specificMinigames == null) {
+		Map<Integer, Set<ServerSocketData>> minigames = this.queued.remove(serverData.getMinigame());
+		if (minigames == null) {
 			return;
 		}
 
-		Set<ServerSocketData> specificPlayers = specificMinigames.get(serverData.getMaxPlayers());
-		if (specificPlayers == null) {
+		Set<ServerSocketData> players = minigames.get(serverData.getMaxPlayers());
+		if (players == null) {
 			return;
 		}
 
-		specificPlayers.remove(serverData);
-		specificMinigames.put(serverData.getMaxPlayers(), specificPlayers);
-		this.queued.put(serverData.getMinigame(), specificMinigames);
+		players.remove(serverData);
+		minigames.put(serverData.getMaxPlayers(), players);
+		this.queued.put(serverData.getMinigame(), minigames);
 		this.plugin.removeServer(serverData.getServerName());
 	}
 
@@ -134,38 +149,36 @@ public class ServerManager {
 		}
 	}
 
-	/**
-	 * Re-queues the specified server for future minigames.
-	 *
-	 * @param serverData    The server to be re-queued.
-	 */
 	public void addInactiveServer(@NotNull ServerSocketData serverData) {
 		if (this.actives.remove(serverData)) {
-			this.gameKeys.inverse().remove(serverData);
-			this.inactives.add(serverData.reset());
-			this.plugin.getLogger().info(ChatColor.GREEN + "The minigame server " + serverData.getServerName() + " was re-added to the inactive server queue.");
+			this.plugin.getLogger().info(ChatColor.GREEN + "Re-added " + serverData.getServerName() + " to the inactive server queue.");
 		} else {
-			this.plugin.getLogger().warning("The minigame server " + serverData.getServerName() + " was not in the active server queue when the minigame ended. It is safe to ignored this warning if no other exceptions occur in console.");
+			this.plugin.getLogger().warning("Mismatched server state for " + serverData.getServerName() + " while adding inactive server. This warning can be safely ignored.");
 			this.confirmations.remove(serverData);
 			this.removeFromQueued(serverData);
 		}
+
+		serverData.setStatus(ServerSocketData.ServerStatus.INACTIVE);
+		this.gameKeys.inverse().remove(serverData);
+		this.inactives.add(serverData.reset());
 	}
 
 	public void addActiveServer(@NotNull ServerSocketData serverData, int gameKey) {
 		if (!this.confirmations.remove(serverData)) {
-			this.plugin.getLogger().warning("The minigame server " + serverData.getServerName() + " was not in the confirmation queue as the minigame started. It is safe to ignore this warning if no other exceptions occur in console.");
-			this.actives.remove(serverData);
+			this.plugin.getLogger().warning("Mismatched server state for " + serverData.getServerName() + " while adding active server. This warning can be safely ignored.");
 			this.inactives.remove(serverData);
 			this.gameKeys.inverse().remove(serverData);
+			this.actives.remove(serverData);
 			this.removeFromQueued(serverData);
 		}
 
 		serverData.setStatus(ServerSocketData.ServerStatus.COUNTING_DOWN);
 		this.gameKeys.put(gameKey, serverData);
 		this.actives.add(serverData);
+		this.plugin.getLogger().info(ChatColor.GREEN + "Starting minigame on " + serverData.getServerName() + " with game key " + gameKey);
 	}
 
-	private void forceEndInternal(@NotNull ServerSocketData serverData) {
+	private void forceEnd(@NotNull ServerSocketData serverData) {
 		try {
 			serverData.sendPacket(new PacketPlayOutForceEnd());
 		} catch (IOException e) {
@@ -184,7 +197,7 @@ public class ServerManager {
 			return false;
 		}
 
-		this.forceEndInternal(serverData);
+		this.forceEnd(serverData);
 		return true;
 	}
 
@@ -198,7 +211,7 @@ public class ServerManager {
 			return false;
 		}
 
-		this.forceEndInternal(serverData);
+		this.forceEnd(serverData);
 		return true;
 	}
 
@@ -245,82 +258,82 @@ public class ServerManager {
 
 	public void queueServer(@NotNull ServerSocketData serverData, boolean reset) {
 		if (reset) {
-			this.actives.add(serverData);
+			this.actives.remove(serverData);
+			this.plugin.getLogger().info(ChatColor.RED + "REMOVED ACTIVE SERVER IN #queueServer");
 			this.gameKeys.inverse().remove(serverData);
 			this.confirmations.remove(serverData);
 			this.removeFromQueued(serverData);
 			this.inactives.add(serverData.reset());
 		} else {
-			Map<Integer, Set<ServerSocketData>> specifiedMinigames = this.queued.get(serverData.getMinigame());
-			if (specifiedMinigames == null) {
-				specifiedMinigames = new HashMap<>();
+			Map<Integer, Set<ServerSocketData>> minigames = this.queued.get(serverData.getMinigame());
+			if (minigames == null) {
+				minigames = new HashMap<>();
 			}
 
-			Set<ServerSocketData> specifiedPlayers = specifiedMinigames.get(serverData.getMaxPlayers());
-			if (specifiedPlayers == null) {
-				specifiedPlayers = new HashSet<>();
+			Set<ServerSocketData> servers = minigames.get(serverData.getMaxPlayers());
+			if (servers == null) {
+				servers = new HashSet<>();
 			}
 
-			specifiedPlayers.add(serverData);
-			specifiedMinigames.put(serverData.getMaxPlayers(), specifiedPlayers);
-			this.queued.put(serverData.getMinigame(), specifiedMinigames);
+			servers.add(serverData);
+			minigames.put(serverData.getMaxPlayers(), servers);
+			this.queued.put(serverData.getMinigame(), minigames);
 		}
 	}
 
-	public boolean queuePlayer(@NotNull ProxiedPlayer sender, String name, int maxPlayers) {
-		ServerSocketData.Minigames minigame = this.checkMinigame(sender, name, maxPlayers);
-		if (minigame == ServerSocketData.Minigames.INACTIVE) {
-			return false;
+	public void queuePlayer(@NotNull PlayerData senderData, String name, int maxPlayers) {
+		ProxiedPlayer sender = senderData.getPlayer();
+		ServerSocketData.Minigames type = this.checkMinigame(sender, name, maxPlayers);
+		if (type == ServerSocketData.Minigames.INACTIVE) {
+			return;
 		}
 
 		ServerSocketData serverData;
-		Map<Integer, Set<ServerSocketData>> specificMinigames = this.queued.get(minigame);
-		if (specificMinigames == null) {
-			specificMinigames = new HashMap<>();
+		Map<Integer, Set<ServerSocketData>> minigames = this.queued.get(type);
+		if (minigames == null) {
+			minigames = new HashMap<>();
 		}
 
-		Set<ServerSocketData> specificPlayers = specificMinigames.get(maxPlayers);
-		if (specificPlayers == null) {
-			specificPlayers = new HashSet<>();
+		Set<ServerSocketData> servers = minigames.get(maxPlayers);
+		if (servers == null) {
+			servers = new HashSet<>();
 		}
 
-		if (specificPlayers.isEmpty()) {
+		if (servers.isEmpty()) {
 			serverData = this.inactives.poll();
 			if (serverData == null) {
-				sender.sendMessage(new TextComponent(ChatColor.RED + "There are currently no available servers to host a " + minigame.getDisplayName() + " on. Please try again later."));
-				return false;
+				sender.sendMessage(new TextComponent(ChatColor.RED + "There are currently no available servers to host a " + type.getDisplayName() + " on. Please try again later."));
+				return;
 			}
 
 			try {
-				serverData.sendPacket(new PacketPlayOutCreateMinigame(minigame.ordinal(), this.plugin.getAndIncrementGameKey(), maxPlayers));
+				serverData.sendPacket(new PacketPlayOutCreateMinigame(type.ordinal(), this.plugin.getAndIncrementGameKey(), maxPlayers));
 				serverData.setStatus(ServerSocketData.ServerStatus.QUEUED);
-				serverData.setMinigame(minigame);
+				serverData.setMinigame(type);
 				serverData.setMaxPlayers(maxPlayers);
 				serverData.setPlayers(0);
-				specificPlayers.add(serverData);
+				servers.add(serverData);
 			} catch (IOException e) {
 				e.printStackTrace();
 				sender.sendMessage(new TextComponent(ChatColor.RED + "An error occurred while queuing you for " + serverData.getServerName() + ". Contact an administrator urgently if this occurs."));
-				return false;
+				return;
 			}
 		} else {
-			serverData = Iterables.get(specificPlayers, this.random.nextInt(specificPlayers.size()));
+			serverData = Iterables.get(servers, this.random.nextInt(servers.size()));
 		}
 
 		if (serverData.incrementPlayers() >= maxPlayers) {
-			specificPlayers.remove(serverData);
+			servers.remove(serverData);
 			this.confirmations.add(serverData);
 		}
 
 		try {
 			serverData.sendQueuePlayer(sender);
-			specificMinigames.put(maxPlayers, specificPlayers);
-			this.queued.put(minigame, specificMinigames);
-			return true;
+			minigames.put(maxPlayers, servers);
+			this.queued.put(type, minigames);
 		} catch (IOException e) {
 			e.printStackTrace();
 			sender.sendMessage(new TextComponent(ChatColor.RED + "An error occurred while sending you to " + serverData.getServerName() + ". Contact an administrator urgently if this occurs."));
-			return false;
 		}
 	}
 }
