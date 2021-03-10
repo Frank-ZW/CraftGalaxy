@@ -10,5 +10,5 @@ public class StringUtil {
 
 	public static final String PLAYER_ONLY = ChatColor.RED + "You must be a player to run this command.";
 
-	public static final String BACKEND_SERVER_PERMISSION = "minigamecore.developer";
+	public static final String BACKEND_SERVER_PERMISSION = "minigamecore.backend";
 }

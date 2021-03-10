@@ -2,6 +2,7 @@ package net.craftgalaxy.minigameservice.bukkit.minigame;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
+import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -10,6 +11,7 @@ import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -79,12 +81,6 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 			Bukkit.unloadWorld(world, false);
 			FileUtils.deleteDirectory(world.getWorldFolder());
 		}
-
-		this.worlds.clear();
-		this.spectators.clear();
-		this.advancements.clear();
-		this.players.clear();
-		this.gameKey = Integer.MIN_VALUE;
 	}
 
 	@Override
@@ -100,25 +96,42 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 			}
 
 			if (this.isSpectator(uniqueId)) {
+				this.showSpectator(player);
 				PlayerUtil.unsetSpectator(player);
 			} else {
 				this.clearAwardedAdvancements(player);
 				PlayerUtil.resetAttributes(player);
 			}
 
-			player.teleportAsync(this.lobby).thenAccept(result -> {
-				if (!result) {
-					player.sendMessage(ChatColor.RED + "Failed to teleport you back to the lobby. Contact an administrator if this occurs.");
-					Bukkit.getLogger().warning("Failed to teleport " + player.getName() + " to the lobby.");
-				}
-			});
+			player.teleport(this.lobby);
 		}
 
-		this.setWaiting();
+		super.endTeleport();
+	}
+
+	@Override
+	public void handleChatFormat(@NotNull AsyncPlayerChatEvent e) {
+		Player player = e.getPlayer();
+		if (this.isInProgress() || this.isFinished()) {
+			if (this.isSpectator(player.getUniqueId())) {
+				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+			} else {
+				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + ChatColor.GREEN + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+			}
+		} else {
+			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
+		}
+	}
+
+	@Override
+	public void cancelCountdown() {
+		super.cancelCountdown();
+		this.worlds.clear();
+		this.advancements.clear();
 	}
 
 	/**
-	 * @return  The world for the minigame representing the Overworld.
+	 * @return  The world for the minigame representing the normal world.
 	 */
 	public World getOverworld() {
 		return this.worlds.get(World.Environment.NORMAL);
@@ -144,5 +157,12 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	 */
 	public World getEnd() {
 		return this.worlds.get(World.Environment.THE_END);
+	}
+
+	@Override
+	public void unload() {
+		super.unload();
+		this.worlds.clear();
+		this.advancements.clear();
 	}
 }

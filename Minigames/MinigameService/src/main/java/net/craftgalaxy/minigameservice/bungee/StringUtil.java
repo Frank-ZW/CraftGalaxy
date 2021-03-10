@@ -12,4 +12,5 @@ public class StringUtil {
 	public static final String SOLO_MANHUNT_COMMAND = "bungeecore.commands.solo";
 	public static final String SHUTDOWN_COMMAND = "bungeecore.commands.shutdown";
 	public static final String SHUTDOWN_ALL_COMMAND = "bungeecore.commands.shutdown.all";
+	public static final String BACKEND_SERVER_PERMISSION = "bungeecore.backend";
 }
