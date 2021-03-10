@@ -1,5 +1,5 @@
 name: DeathSwap
-main: net.craftgalaxy.deathswap.DeathSwap
+main: net.craftgalaxy.deathswap.DeathSwapCore
 version: ${project.version}
 api-version: 1.16
 author: Frank

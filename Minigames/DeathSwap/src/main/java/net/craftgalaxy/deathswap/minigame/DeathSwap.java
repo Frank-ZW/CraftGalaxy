@@ -4,18 +4,18 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.craftgalaxy.deathswap.DeathSwapCore;
 import net.craftgalaxy.deathswap.runnable.SwapRunnable;
 import net.craftgalaxy.minigameservice.bukkit.minigame.SurvivalMinigame;
-import net.craftgalaxy.minigameservice.bukkit.runnable.CountdownRunnable;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -61,10 +61,10 @@ public final class DeathSwap extends SurvivalMinigame {
 
 	@Override
 	public void startTeleport() {
-		this.setInProgress();
+		super.startTeleport();
 		World overworld = this.getOverworld();
-		overworld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
 		Location spawn = overworld.getSpawnLocation();
+		overworld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
 		float theta = -90.0F;
 		float delta = 360.0F / this.players.size();
 		int radius = Math.min(8, 3 * this.players.size());
@@ -102,37 +102,8 @@ public final class DeathSwap extends SurvivalMinigame {
 
 	@Override
 	public void startCountdown(@NotNull List<UUID> players) {
-		this.setCountingDown();
+		super.startCountdown(players);
 		this.alive.addAll(players);
-		this.players.addAll(players);
-		this.countdown = new CountdownRunnable(this);
-		this.countdown.runTaskTimer(this.plugin, 20L, 20L);
-	}
-
-	@Override
-	public void endTeleport() {
-		for (UUID uniqueId : this.players) {
-			Player player = Bukkit.getPlayer(uniqueId);
-			if (player == null || !player.isOnline()) {
-				continue;
-			}
-
-			if (this.isSpectator(uniqueId)) {
-				this.showSpectator(player);
-				PlayerUtil.unsetSpectator(player);
-			} else {
-				PlayerUtil.resetAttributes(player);
-			}
-
-			player.teleportAsync(this.lobby).thenAccept(result -> {
-				if (!result) {
-					player.sendMessage(ChatColor.RED + "Failed to teleport you back to the lobby. Contact an administrator if this occurs.");
-					this.plugin.getLogger().warning("Failed to teleport " + player.getName() + " to the lobby.");
-				}
-			});
-		}
-
-		this.setWaiting();
 	}
 
 	@Override
@@ -146,19 +117,22 @@ public final class DeathSwap extends SurvivalMinigame {
 	}
 
 	@Override
+	public void cancelCountdown() {
+		super.cancelCountdown();
+		this.alive.clear();
+	}
+
+	@Override
 	public void handleEvent(@NotNull Event event) {
 		if (event instanceof PlayerEvent) {
 			Player player = ((PlayerEvent) event).getPlayer();
-			if (event instanceof AsyncPlayerChatEvent) {
-				AsyncPlayerChatEvent e = (AsyncPlayerChatEvent) event;
-
-			} else if (event instanceof PlayerTeleportEvent) {
+			if (event instanceof PlayerTeleportEvent) {
 				PlayerTeleportEvent e = (PlayerTeleportEvent) event;
 				switch (e.getCause()) {
 					case NETHER_PORTAL:
 					case END_PORTAL:
 						e.setCancelled(true);
-						player.sendMessage(ChatColor.RED + "The " + (e.getCause() == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL ? "Nether" : "End") + " is disabled for Death Swap! You must rely on another way to kill your opponents!");
+						player.sendMessage(ChatColor.RED + "The Nether and End has been disabled for Death Swap. You must rely on another way to kill the opponents.");
 					default:
 				}
 			}
@@ -169,28 +143,47 @@ public final class DeathSwap extends SurvivalMinigame {
 			}
 		} else if (event instanceof PlayerDeathEvent) {
 			PlayerDeathEvent e = (PlayerDeathEvent) event;
+			if (!this.status.isInProgress()) {
+				return;
+			}
+
 			Player player = e.getEntity();
-			this.spectators.add(player.getUniqueId());
-			if (!this.alive.remove(player.getUniqueId())) {
-				return;
-			}
-
-			if (this.alive.isEmpty()) {
-				this.endMinigame(null);
-				return;
-			}
-
 			e.setCancelled(true);
-			this.hideSpectator(player);
-			PlayerUtil.setSpectator(player);
-			if (this.alive.size() == 1) {
-				this.endMinigame(Bukkit.getPlayer(this.alive.get(0)));
+			if (this.alive.isEmpty()) {
+				this.endMinigame(Bukkit.getOfflinePlayer(player.getUniqueId()));
+			} else if (this.alive.size() == 1) {
+				this.endMinigame(Bukkit.getOfflinePlayer(this.alive.get(0)));
 			} else {
+				this.spectators.add(player.getUniqueId());
+				this.hideSpectator(player);
+				PlayerUtil.setSpectator(player);
 				this.broadcast("");
-				this.broadcast(ChatColor.GREEN + player.getName() + " has died... There are " + this.alive.size() + " players remaining.");
+				this.broadcast(ChatColor.GREEN + player.getName() + " has died. There are " + this.alive.size() + " players remaining.");
 				this.broadcast("");
+			}
+		} else if (event instanceof PortalCreateEvent) {
+			PortalCreateEvent e = (PortalCreateEvent) event;
+			e.setCancelled(true);
+			Entity entity = e.getEntity();
+			if (entity != null) {
+				entity.sendMessage(ChatColor.RED + "The Nether and End has been disabled for Death Swap. You must rely on another way to kill the opponents.");
+			}
+		} else if (event instanceof EntityDamageEvent) {
+			EntityDamageEvent e = (EntityDamageEvent) event;
+			if (this.status.isFinished()) {
+				e.setCancelled(true);
 			}
 		}
+	}
+
+	public void endMinigame(@NotNull OfflinePlayer player) {
+		this.broadcast(ChatColor.GREEN + player.getName() + " has won the Death Swap.");
+		if (this.swapRunnable != null) {
+			this.swapRunnable.cancel();
+			this.swapRunnable = null;
+		}
+
+		super.endMinigame(false);
 	}
 
 	public void endMinigame(@Nullable Player winner) {
@@ -223,23 +216,29 @@ public final class DeathSwap extends SurvivalMinigame {
 			return;
 		}
 
-		List<Player> online = this.alive.parallelStream().map(Bukkit::getPlayer).filter(Objects::nonNull).collect(Collectors.toList());
-		if (online.isEmpty()) {
-			this.endMinigame(null);
-		} else if (online.size() == 1) {
-			this.endMinigame(online.get(0));
-		} else {
-			Location initial = online.get(0).getLocation();
+		List<Player> online = this.alive.parallelStream().map(Bukkit::getOfflinePlayer).filter(OfflinePlayer::isOnline).map(OfflinePlayer::getPlayer).collect(Collectors.toList());
+		if (online.size() > 1) {
 			for (int i = 0; i < online.size(); i++) {
 				Player player = online.get(i);
-				if (i == online.size() - 1) {
-					player.teleportAsync(initial);
-					player.playSound(initial, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5F, 0.5F);
-				} else {
-					Player next = online.get(i + 1);
-					player.teleportAsync(next.getLocation());
-					player.playSound(next.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5F, 0.5F);
-				}
+				Location to = i == online.size() - 1 ? online.get(0).getLocation() : online.get(i + 1).getLocation();
+				player.teleportAsync(to);
+				player.playSound(to, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5F, 0.5F);
+			}
+		}
+	}
+
+	@Override
+	public void removePlayer(@NotNull Player player) {
+		super.removePlayer(player);
+		if (this.alive.remove(player.getUniqueId())) {
+			if (this.alive.isEmpty()) {
+				this.endMinigame(player);
+			} else if (this.alive.size() == 1) {
+				this.endMinigame(Bukkit.getOfflinePlayer(this.alive.get(0)));
+			} else {
+				this.broadcast("");
+				this.broadcast(ChatColor.GREEN + player.getName() + " has died. There are " + this.alive.size() + " players remaining.");
+				this.broadcast("");
 			}
 		}
 	}
