@@ -1,5 +1,6 @@
 package net.craftgalaxy.minigamecore.listener;
 
+import com.destroystokyo.paper.event.player.PlayerAdvancementCriterionGrantEvent;
 import com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent;
 import net.craftgalaxy.minigamecore.minigame.MinigameManager;
 import org.bukkit.event.EventHandler;
@@ -11,16 +12,23 @@ import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.event.world.PortalCreateEvent;
+
+import java.io.IOException;
 
 public final class PlayerListener implements Listener {
 
 	@EventHandler
 	public void onPlayerJoin(PlayerJoinEvent e) {
-		MinigameManager.getInstance().handleConnect(e.getPlayer());
+		try {
+			MinigameManager.getInstance().handleConnect(e.getPlayer());
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
 	}
 
 	@EventHandler
-	public void onPlayerQuit(PlayerQuitEvent e) {
+	public void onPlayerQuit(PlayerQuitEvent e) throws IOException {
 		MinigameManager.getInstance().handleDisconnect(e.getPlayer());
 	}
 
@@ -121,6 +129,21 @@ public final class PlayerListener implements Listener {
 
 	@EventHandler
 	public void onPlayerTeleport(PlayerTeleportEvent e) {
-		MinigameManager.getInstance().handlePacket(e);
+		MinigameManager.getInstance().handleEvent(e);
+	}
+
+	@EventHandler
+	public void onPlayerCriteriaGrant(PlayerAdvancementCriterionGrantEvent e) {
+		MinigameManager.getInstance().handleEvent(e);
+	}
+
+	@EventHandler
+	public void onPlayerAdvancementDone(PlayerAdvancementDoneEvent e) {
+		MinigameManager.getInstance().handleEvent(e);
+	}
+
+	@EventHandler
+	public void onPortalCreate(PortalCreateEvent e) {
+		MinigameManager.getInstance().handleEvent(e);
 	}
 }

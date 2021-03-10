@@ -1,13 +1,17 @@
 package net.craftgalaxy.minigamecore.command;
 
 import net.craftgalaxy.minigamecore.minigame.MinigameManager;
+import net.craftgalaxy.minigameservice.bukkit.minigame.AbstractMinigame;
 import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
+import net.craftgalaxy.minigameservice.packet.impl.server.PacketPlayInPlayerConnect;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
 
 public final class LeaveCommand implements CommandExecutor {
 
@@ -20,7 +24,11 @@ public final class LeaveCommand implements CommandExecutor {
 
 		Player sender = (Player) commandSender;
 		if (args.length == 0) {
-			MinigameManager.getInstance().handleSafeLeave(sender);
+			try {
+				MinigameManager.getInstance().sendBungeeLobby(sender);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		} else {
 			sender.sendMessage(ChatColor.RED + "To leave a minigame, type /leave.");
 		}
