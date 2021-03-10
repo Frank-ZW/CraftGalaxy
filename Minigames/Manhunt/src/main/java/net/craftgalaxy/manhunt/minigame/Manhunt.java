@@ -1,11 +1,11 @@
 package net.craftgalaxy.manhunt.minigame;
 
+import com.destroystokyo.paper.event.player.PlayerAdvancementCriterionGrantEvent;
 import com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.craftgalaxy.manhunt.ManhuntCore;
 import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.minigame.SurvivalMinigame;
-import net.craftgalaxy.minigameservice.bukkit.runnable.CountdownRunnable;
 import net.craftgalaxy.minigameservice.bukkit.util.ItemUtil;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
 import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
@@ -27,7 +27,6 @@ import org.bukkit.inventory.meta.CompassMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -139,7 +138,7 @@ public final class Manhunt extends SurvivalMinigame {
 
 	@Override
 	public void startTeleport() {
-		this.setInProgress();
+		super.startTeleport();
 		Player runner = this.getPlayerSpeedrunner();
 		if (runner == null) {
 			this.broadcast(ChatColor.RED + "An error occurred while retrieving the speedrunner. Contact an administrator if this occurs.");
@@ -194,19 +193,40 @@ public final class Manhunt extends SurvivalMinigame {
 
 	@Override
 	public void startCountdown(@NotNull List<UUID> players) {
-		this.setCountingDown();
-		this.players.addAll(players);
-		this.speedrunner = players.remove(this.random.nextInt(players.size()));
+		super.startCountdown(players);
+		speedrunner = players.remove(this.random.nextInt(players.size()));
 		this.hunters.addAll(players);
-		this.countdown = new CountdownRunnable(this);
-		this.countdown.runTaskTimer(this.plugin, 20L, 20L);
 	}
 
 	@Override
-	public void deleteWorlds() throws IOException {
-		super.deleteWorlds();
-		this.speedrunner = null;
+	public void unload() {
+		super.unload();
 		this.hunters.clear();
+		this.speedrunner = null;
+	}
+
+	@Override
+	public void handleChatFormat(@NotNull AsyncPlayerChatEvent e) {
+		Player player = e.getPlayer();
+		String prefix = this.plugin.getChatFormatter() == null ? null : this.plugin.getChatFormatter().getPlayerPrefix(player);
+		if (this.status.isInProgress() || this.status.isFinished()) {
+			if (this.isSpectator(player.getUniqueId())) {
+				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+			} else {
+				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+			}
+		} else {
+			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
+		}
+	}
+
+	@Override
+	public void disconnectMessage(@NotNull Player player) {
+		if (this.isSpectator(player.getUniqueId())) {
+			return;
+		}
+
+		this.broadcast((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " disconnected.");
 	}
 
 	@Override
@@ -298,38 +318,7 @@ public final class Manhunt extends SurvivalMinigame {
 						break;
 					default:
 				}
-			} else if (event instanceof AsyncPlayerChatEvent) {
-				AsyncPlayerChatEvent e = (AsyncPlayerChatEvent) event;
-				if (e.isCancelled()) {
-					return;
-				}
-
-				Set<Player> recipients = new HashSet<>(e.getRecipients());
-				Iterator<Player> iterator = recipients.iterator();
-				String prefix = this.plugin.getChatFormatter() == null ? null : this.plugin.getChatFormatter().getPlayerPrefix(player);
-				if (this.inProgress || this.finished) {
-					if (this.isSpectator(player.getUniqueId())) {
-						e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-					} else {
-						e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-					}
-				} else {
-					e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
-				}
-
-				while (true) {
-					Player recipient;
-					do {
-						if (!iterator.hasNext()) {
-							return;
-						}
-
-						recipient = iterator.next();
-					} while (this.players.contains(player.getUniqueId()) ? (this.isSpectator(player.getUniqueId()) ? this.isSpectator(recipient.getUniqueId()) : this.players.contains(recipient.getUniqueId())) : !this.players.contains(recipient.getUniqueId()));
-					e.getRecipients().remove(recipient);
-				}
-			}
-			else if (event instanceof PlayerPickupExperienceEvent) {
+			} else if (event instanceof PlayerPickupExperienceEvent) {
 				PlayerPickupExperienceEvent e = (PlayerPickupExperienceEvent) event;
 				if (this.isSpectator(player.getUniqueId())) {
 					e.setCancelled(true);
@@ -342,15 +331,20 @@ public final class Manhunt extends SurvivalMinigame {
 			} else if (event instanceof PlayerAdvancementDoneEvent) {
 				PlayerAdvancementDoneEvent e = (PlayerAdvancementDoneEvent) event;
 				this.addAwardedAdvancement(player, e.getAdvancement());
+			} else if (event instanceof PlayerAdvancementCriterionGrantEvent) {
+				PlayerAdvancementCriterionGrantEvent e = (PlayerAdvancementCriterionGrantEvent) event;
+				if (this.isSpectator(e.getPlayer().getUniqueId())) {
+					e.setCancelled(true);
+				}
 			}
 		} else if (event instanceof PlayerDeathEvent) {
 			PlayerDeathEvent e = (PlayerDeathEvent) event;
-			if (this.finished || this.isSpectator(e.getEntity().getUniqueId())) {
+			if (this.status.isFinished() || this.isSpectator(e.getEntity().getUniqueId())) {
 				e.setCancelled(true);
 				return;
 			}
 
-			if (this.inProgress) {
+			if (this.status.isInProgress()) {
 				if (this.isSpeedrunner(e.getEntity().getUniqueId())) {
 					this.endMinigame(false, false);
 				} else {
@@ -375,7 +369,7 @@ public final class Manhunt extends SurvivalMinigame {
 		} else if (event instanceof EntityDamageEvent) {
 			EntityDamageEvent e = (EntityDamageEvent) event;
 			if (e.getEntity() instanceof Player) {
-				if (this.finished || this.isSpectator(e.getEntity().getUniqueId())) {
+				if (this.status.isFinished() || this.isSpectator(e.getEntity().getUniqueId())) {
 					e.setCancelled(true);
 				}
 			}
@@ -438,39 +432,25 @@ public final class Manhunt extends SurvivalMinigame {
 		}
 	}
 
-	/**
-	 * @param player    The player to be removed from the minigame.
-	 */
 	@Override
 	public void removePlayer(@NotNull Player player) {
-		if (this.waiting) {
-			return;
-		}
-
+		super.removePlayer(player);
 		if (this.isSpeedrunner(player.getUniqueId())) {
-			if (this.inProgress) {
+			if (this.status.isInProgress()) {
 				this.endMinigame(false, false);
 			} else {
 				this.speedrunner = null;
 			}
-		} else if (this.hunters.remove(player.getUniqueId()) && this.inProgress && this.hunters.isEmpty()) {
+		} else if (this.hunters.remove(player.getUniqueId()) && this.status.isInProgress() && this.hunters.isEmpty()) {
 			this.endMinigame(true, false);
 		}
-
-		super.removePlayer(player);
 	}
 
 	@Override
 	public void cancelCountdown() {
-		if (this.countingDown && this.countdown != null) {
-			this.setWaiting();
-			this.broadcastTitleAndEffect(ChatColor.RED + "CANCELLED!", Effect.CLICK2);
-			this.countdown.cancel();
-			this.speedrunner = null;
-			this.hunters.clear();
-			this.spectators.clear();
-			this.players.clear();
-		}
+		super.cancelCountdown();
+		this.speedrunner = null;
+		this.hunters.clear();
 	}
 
 	public boolean isSpeedrunner(@NotNull UUID uniqueId) {
