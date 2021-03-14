@@ -11,6 +11,7 @@
       <module fileurl="file://$PROJECT_DIR$/GalaxyCore/GalaxyBungee/GalaxyBungee.iml" filepath="$PROJECT_DIR$/GalaxyCore/GalaxyBungee/GalaxyBungee.iml" />
       <module fileurl="file://$PROJECT_DIR$/GalaxyCore/GalaxyCore.iml" filepath="$PROJECT_DIR$/GalaxyCore/GalaxyCore.iml" />
       <module fileurl="file://$PROJECT_DIR$/Minigames/LobbyCore/LobbyCore.iml" filepath="$PROJECT_DIR$/Minigames/LobbyCore/LobbyCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Minigames/LockOut/LockOut.iml" filepath="$PROJECT_DIR$/Minigames/LockOut/LockOut.iml" />
       <module fileurl="file://$PROJECT_DIR$/Minigames/Manhunt/Manhunt.iml" filepath="$PROJECT_DIR$/Minigames/Manhunt/Manhunt.iml" />
       <module fileurl="file://$PROJECT_DIR$/Mavic/Mavic.iml" filepath="$PROJECT_DIR$/Mavic/Mavic.iml" />
       <module fileurl="file://$PROJECT_DIR$/Minigames/MinigameCore/MinigameCore.iml" filepath="$PROJECT_DIR$/Minigames/MinigameCore/MinigameCore.iml" />

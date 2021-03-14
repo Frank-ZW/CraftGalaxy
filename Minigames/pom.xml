@@ -15,6 +15,7 @@
         <module>Manhunt</module>
         <module>LobbyCore</module>
         <module>DeathSwap</module>
+        <module>LockOut</module>
     </modules>
 
     <properties>
