@@ -107,5 +107,11 @@
             <version>1.0.0</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>net.craftgalaxy</groupId>
+            <artifactId>LockOut</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>

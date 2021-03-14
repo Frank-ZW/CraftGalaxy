@@ -98,11 +98,6 @@ public final class PlayerListener implements Listener {
 	}
 
 	@EventHandler
-	public void onPlayerPickupItem(EntityPickupItemEvent e) {
-		MinigameManager.getInstance().handleEvent(e);
-	}
-
-	@EventHandler
 	public void onFoodLevelChange(FoodLevelChangeEvent e) {
 		MinigameManager.getInstance().handleEvent(e);
 	}
@@ -118,7 +113,7 @@ public final class PlayerListener implements Listener {
 	}
 
 	@EventHandler
-	public void onEntityTarget(EntityTargetEvent e) {
+	public void onEntityTargetLivingEntity(EntityTargetLivingEntityEvent e) {
 		MinigameManager.getInstance().handleEvent(e);
 	}
 
@@ -144,6 +139,16 @@ public final class PlayerListener implements Listener {
 
 	@EventHandler
 	public void onPortalCreate(PortalCreateEvent e) {
+		MinigameManager.getInstance().handleEvent(e);
+	}
+
+	@EventHandler
+	public void onPlayerAttemptPickupItem(PlayerAttemptPickupItemEvent e) {
+		MinigameManager.getInstance().handleEvent(e);
+	}
+
+	@EventHandler
+	public void onPlayerBedEnter(PlayerBedEnterEvent e) {
 		MinigameManager.getInstance().handleEvent(e);
 	}
 }

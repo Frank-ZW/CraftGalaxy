@@ -2,6 +2,7 @@ package net.craftgalaxy.minigamecore.minigame;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.craftgalaxy.deathswap.minigame.DeathSwap;
+import net.craftgalaxy.lockout.minigame.LockOut;
 import net.craftgalaxy.manhunt.minigame.Manhunt;
 import net.craftgalaxy.minigamecore.MinigameCore;
 import net.craftgalaxy.minigamecore.socket.CoreSocket;
@@ -31,11 +32,10 @@ import java.util.logging.Level;
 public class MinigameManager {
 
 	private final MinigameCore plugin;
-	private final Map<UUID, BukkitTask> disconnections = new HashMap<>();
-//	private final Map<UUID, Consumer<Player>> consumerMap = new HashMap<>();
-	private final Set<UUID> queuedPlayers = new HashSet<>();
-//	private final Set<UUID> safeDisconnect = new HashSet<>();
-	private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("MinigameCore Socket Thread").build());
+	private Map<UUID, BukkitTask> disconnections = new HashMap<>();
+	private Set<UUID> queuedPlayers = new HashSet<>();
+	private ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("MinigameCore Socket Thread").build());
+	private BukkitTask scheduledForceEnd;
 	private int maxPlayers;
 	private CoreSocket socket;
 	private AbstractMinigame minigame;
@@ -53,12 +53,12 @@ public class MinigameManager {
 	}
 
 	public static void disable() {
-		Bukkit.getScheduler().cancelTasks(instance.plugin);
 		if (instance == null) {
 			return;
 		}
 
 		instance.executor.shutdown();
+		Bukkit.getScheduler().cancelTasks(instance.plugin);
 		if (instance.minigame != null) {
 			if (instance.minigame.isInProgress()) {
 				instance.minigame.endMinigame(true);
@@ -72,12 +72,10 @@ public class MinigameManager {
 			}
 		}
 
-		if (instance.socket == null) {
-			Bukkit.getLogger().info(ChatColor.RED + "The socket was not initialized while disabling MinigameCore. This usually means an error occurred during startup.");
-		} else {
+		if (instance.socket != null) {
 			try {
 				instance.socket.sendPacket(new PacketPlayInRequestDisconnect(Bukkit.getOnlinePlayers()));
-				if (instance.socketFuture.get(5, TimeUnit.SECONDS)) {
+				if (instance.socketFuture.get(8, TimeUnit.SECONDS)) {
 					Bukkit.getLogger().info(ChatColor.GREEN + "Successfully disconnected the socket for " + MinigameCore.BUNGEE_SERVER_NAME);
 				}
 			} catch (InterruptedException | ExecutionException | IOException | TimeoutException e) {
@@ -86,11 +84,25 @@ public class MinigameManager {
 		}
 
 		instance.queuedPlayers.clear();
-//		instance.safeDisconnect.clear();
 		instance.disconnections.clear();
-//		instance.consumerMap.clear();
 		instance.executor.shutdownNow();
-		instance = null;
+		try {
+			if (instance.executor.awaitTermination(8, TimeUnit.SECONDS)) {
+				Bukkit.getLogger().info(ChatColor.GREEN + "MinigameCore executor has been terminated.");
+			}
+		} catch (InterruptedException e) {
+			Bukkit.getLogger().log(Level.SEVERE, "An interrupted exception occurred while terminating the MinigameCore executor", e);
+		} finally {
+			instance.maxPlayers = 0;
+			instance.disconnections = null;
+			instance.queuedPlayers = null;
+			instance.executor = null;
+			instance.scheduledForceEnd = null;
+			instance.socket = null;
+			instance.minigame = null;
+			instance.socketFuture = null;
+			instance = null;
+		}
 	}
 
 	public static MinigameManager getInstance() {
@@ -109,14 +121,6 @@ public class MinigameManager {
 		this.socket.sendPacket(new PacketPlayInPlayerConnect(player.getUniqueId()));
 	}
 
-	public void sendThenRequeue() throws IOException {
-		Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while loading up the worlds for " + (this.minigame == null ? "Unknown" : this.minigame.getName()) + ". You have been teleported back to the lobby.");
-		this.socket.sendPacket(new PacketPlayInPlayerConnect(this.queuedPlayers));
-		this.socket.sendPacket(new PacketPlayInServerQueue(true));
-		this.minigame.deleteWorlds();
-		this.queuedPlayers.clear();
-	}
-
 	public void handlePacket(Object object) {
 		if (object instanceof PacketPlayOutCreateMinigame) {
 			PacketPlayOutCreateMinigame packet = (PacketPlayOutCreateMinigame) object;
@@ -128,6 +132,9 @@ public class MinigameManager {
 				case 1:
 					this.minigame = new DeathSwap(packet.getGameKey(), this.plugin.getLobbyLocation());
 					break;
+				case 2:
+					this.minigame = new LockOut(packet.getGameKey(), this.plugin.getLobbyLocation());
+					break;
 				default:
 					Bukkit.getLogger().warning("Received a request to create a new minigame with an id of " + packet.getMinigameId() + ". This id does not exist and has been ignored.");
 					return;
@@ -135,10 +142,15 @@ public class MinigameManager {
 
 			Bukkit.getScheduler().runTask(this.plugin, () -> {
 				if (!this.minigame.createWorlds()) {
+					Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while loading up the worlds for " + (this.minigame == null ? "Unknown" : this.minigame.getName()) + ". You have been teleported back to the lobby.");
 					try {
-						this.sendThenRequeue();
+						this.socket.sendPacket(new PacketPlayInPlayerConnect(this.queuedPlayers));
+						this.socket.sendPacket(new PacketPlayInServerQueue(true));
+						this.minigame.deleteWorlds();
 					} catch (IOException e) {
 						e.printStackTrace();
+					} finally {
+						this.queuedPlayers.clear();
 					}
 				}
 			});
@@ -149,89 +161,6 @@ public class MinigameManager {
 			Bukkit.getScheduler().runTask(this.plugin, this::handleForceEnd);
 		}
 	}
-//
-//	public void handleLeave(@NotNull Player player, boolean disconnectSafely) {
-//		if (this.minigame == null) {
-//			return;
-//		}
-//
-//		try {
-//			if (this.minigame.isInProgress() || this.minigame.isFinished()) {
-//				if (this.minigame.isSpectator(player.getUniqueId())) {
-//					if (disconnectSafely) {
-//						this.minigame.removePlayer(player);
-//						this.socket.sendPacket(new PacketPlayInPlayerLeave(player.getUniqueId(), this.minigame.getNumPlayers(), this.maxPlayers));
-//					} else {
-//						this.consumerMap.put(player.getUniqueId(), future -> {
-//							if (future.isDead()) {
-//								future.spigot().respawn();
-//							}
-//
-//							PlayerUtil.unsetSpectator(future);
-//							this.safeDisconnect.add(future.getUniqueId());
-//							this.sendBungeeLobby(future);
-//						});
-//					}
-//				} else {
-//					this.socket.sendPacket(new PacketPlayInPlayerLeave(player.getUniqueId(), this.minigame.getNumPlayers() - 1, this.maxPlayers));
-//					this.scheduleDisconnectTask(player);
-//				}
-//			} else if (this.minigame.isCountingDown()) {
-//				this.minigame.removePlayer(player);
-//				if (disconnectSafely) {
-//					this.socket.sendPacket(new PacketPlayInPlayerLeave(player.getUniqueId(), this.minigame.getNumPlayers(), this.maxPlayers));
-//				} else {
-//					this.socket.sendPacket(new PacketPlayInDecrementPlayerCount());
-//					consumerMap.put(player.getUniqueId(), future -> {
-//						if (future.isDead()) {
-//							future.spigot().respawn();
-//						}
-//
-//						this.safeDisconnect.add(future.getUniqueId());
-//						this.sendBungeeLobby(future);
-//					});
-//				}
-//
-//				if (this.minigame.getNumPlayers() < this.maxPlayers) {
-//					this.queuedPlayers.addAll(this.minigame.getPlayers());
-//					this.minigame.cancelCountdown();
-//					this.socket.sendPacket(new PacketPlayInServerQueue(this.queuedPlayers.isEmpty()));
-//					if (this.queuedPlayers.isEmpty()) {
-//						this.minigame.deleteWorlds(true);
-//					}
-//				}
-//			} else {
-//				// The minigame is 'waiting' for the number of players to reach the max player threshold
-//				// before starting the count down sequence
-//				this.queuedPlayers.remove(player.getUniqueId());
-//				if (disconnectSafely) {
-//					this.socket.sendPacket(new PacketPlayInPlayerLeave(player.getUniqueId(), this.queuedPlayers.size(), this.maxPlayers));
-//				} else {
-//					this.socket.sendPacket(new PacketPlayInDecrementPlayerCount());
-//					consumerMap.put(player.getUniqueId(), future -> {
-//						if (future.isDead()) {
-//							future.spigot().respawn();
-//						}
-//
-//						this.safeDisconnect.add(future.getUniqueId());
-//						this.sendBungeeLobby(future);
-//					});
-//				}
-//
-//				if (this.queuedPlayers.isEmpty()) {
-//					this.socket.sendPacket(new PacketPlayInServerQueue(true));
-//					this.minigame.deleteWorlds(true);
-//				}
-//			}
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//	}
-//
-//	public void handleSafeLeave(@NotNull Player player) {
-//		this.safeDisconnect.add(player.getUniqueId());
-//		this.handleLeave(player, true);
-//	}
 
 	public void handleForceEnd() {
 		if (this.minigame == null || this.minigame.isFinished()) {
@@ -251,7 +180,6 @@ public class MinigameManager {
 				return;
 			}
 
-//			this.safeDisconnect.addAll(this.queuedPlayers);
 			try {
 				this.socket.sendPacket(new PacketPlayInEndTeleport(this.queuedPlayers));
 			} catch (IOException e) {
@@ -306,27 +234,12 @@ public class MinigameManager {
 			} else {
 				task.cancel();
 				this.minigame.connectMessage(player);
-				this.socket.sendPacket(new PacketPlayInUpdatePlayerStatus(player.getUniqueId(), (byte) 0));
 			}
 		}
-
-//		Consumer<Player> consumer = this.consumerMap.remove(player.getUniqueId());
-//		if (consumer != null) {
-//			consumer.accept(player);
-//			return;
-//		}
-//
-//
-//
-//		if (!player.hasPermission(StringUtil.BACKEND_SERVER_PERMISSION)) {
-//			PlayerUtil.clearAdvancements(player);
-//			PlayerUtil.resetAttributes(player);
-//			this.sendBungeeLobby(player);
-//		}
 	}
 
 	public void handleDisconnect(@NotNull Player player) throws IOException {
-		if (this.minigame == null) {
+		if (this.minigame == null || this.minigame.isFinished()) {
 			return;
 		}
 
@@ -387,6 +300,13 @@ public class MinigameManager {
 					this.socket.sendPacket(new PacketPlayInStartTeleport(event.getPlayers()));
 				} catch (IOException ex) {
 					ex.printStackTrace();
+				} finally {
+					this.scheduledForceEnd = Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+						if (this.minigame != null && this.minigame.isInProgress()) {
+							Bukkit.broadcastMessage(ChatColor.GREEN + "The " + this.minigame.getName() + " you were in was automatically ended because it exceeded the three hour time limit.");
+							this.minigame.endMinigame(false);
+						}
+					}, TimeUnit.HOURS.toSeconds(3) * 20);
 				}
 			} else {
 				MinigameEndEvent event = (MinigameEndEvent) e;
@@ -395,6 +315,11 @@ public class MinigameManager {
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				} finally {
+					if (this.scheduledForceEnd != null && !this.scheduledForceEnd.isCancelled()) {
+						this.scheduledForceEnd.cancel();
+						this.scheduledForceEnd = null;
+					}
+
 					for (UUID uniqueId : this.disconnections.keySet()) {
 						BukkitTask task = this.disconnections.remove(uniqueId);
 						if (task != null) {
@@ -434,56 +359,6 @@ public class MinigameManager {
 				this.minigame.handleEvent(e);
 			}
 		}
-
-//		if (e instanceof MinigameStartEvent) {
-//			MinigameStartEvent event = (MinigameStartEvent) e;
-//
-//			try {
-//				this.socket.sendPacket(new PacketPlayInStartTeleport(event.getPlayers()));
-//			} catch (IOException ex) {
-//				ex.printStackTrace();
-//			}
-//		} else if (e instanceof MinigameEndEvent) {
-//			MinigameEndEvent event = (MinigameEndEvent) e;
-//			this.safeDisconnect.addAll(event.getPlayers());
-//
-//			try {
-//				this.socket.sendPacket(new PacketPlayInEndTeleport(event.getPlayers()));
-//			} catch (IOException ex) {
-//				ex.printStackTrace();
-//			}
-//
-//			this.minigame = null;
-//			for (UUID uniqueId : this.disconnections.keySet()) {
-//				BukkitTask task = this.disconnections.remove(uniqueId);
-//				if (task != null) {
-//					task.cancel();
-//					this.consumerMap.put(uniqueId, future -> {
-//						if (future.isDead()) {
-//							future.spigot().respawn();
-//						}
-//
-//						PlayerUtil.clearAdvancements(future);
-//						PlayerUtil.resetAttributes(future);
-//						future.teleportAsync(this.plugin.getLobbyLocation()).thenRun(() -> {
-//							try {
-//								this.socket.sendPacket(new PacketPlayInPlayerConnect(future.getUniqueId()));
-//							} catch (IOException ex) {
-//								ex.printStackTrace();
-//							}
-//						});
-//					});
-//				}
-//			}
-//		} else if (e instanceof AsyncPlayerChatEvent) {
-//			this.minigame.handleChatEvent((AsyncPlayerChatEvent) e);
-//		} else {
-//			if (this.minigame == null) {
-//				return;
-//			}
-//
-//			this.minigame.handleEvent(e);
-//		}
 	}
 
 	@Nullable

@@ -41,5 +41,6 @@
     <orderEntry type="module" module-name="MinigameService" scope="PROVIDED" />
     <orderEntry type="module" module-name="Manhunt" scope="PROVIDED" />
     <orderEntry type="module" module-name="DeathSwap" scope="PROVIDED" />
+    <orderEntry type="module" module-name="LockOut" scope="PROVIDED" />
   </component>
 </module>
