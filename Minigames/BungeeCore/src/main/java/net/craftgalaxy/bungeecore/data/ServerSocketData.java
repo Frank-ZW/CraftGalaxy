@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.Set;
 import java.util.UUID;
 
 public class ServerSocketData implements Runnable {
@@ -82,6 +81,10 @@ public class ServerSocketData implements Runnable {
 
 	public void setPlayers(int players) {
 		this.players = players;
+	}
+
+	public ServerStatus getStatus() {
+		return this.status;
 	}
 
 	public int incrementPlayers() {
@@ -158,8 +161,7 @@ public class ServerSocketData implements Runnable {
 					this.status = ServerStatus.IN_PROGRESS;
 				} else if (object instanceof PacketPlayInEndTeleport) {
 					PacketPlayInEndTeleport packet = (PacketPlayInEndTeleport) object;
-					Set<UUID> players = packet.getPlayers();
-					for (UUID uniqueId : players) {
+					for (UUID uniqueId : packet.getPlayers()) {
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
 						if (playerData != null) {
 							playerData.getPlayer().connect(this.plugin.getMinigameLobby());
@@ -167,14 +169,17 @@ public class ServerSocketData implements Runnable {
 						}
 					}
 
-					PlayerManager.getInstance().removeDisconnection(players);
+					PlayerManager.getInstance().removeDisconnection(packet.getPlayers());
 					ServerManager.getInstance().addInactiveServer(this);
 				} else if (object instanceof PacketPlayInPlayerConnect) {
 					PacketPlayInPlayerConnect packet = (PacketPlayInPlayerConnect) object;
 					for (UUID uniqueId : packet.getPlayers()) {
 						ProxiedPlayer player = this.plugin.getProxy().getPlayer(uniqueId);
 						if (player != null) {
-							player.connect(this.plugin.getMinigameLobby());
+							ServerInfo server = this.plugin.getMinigameLobby();
+							if (!server.equals(player.getServer().getInfo())) {
+								player.connect(server);
+							}
 						}
 					}
 				} else if (object instanceof PacketPlayInPlayerLeave) {
@@ -192,8 +197,6 @@ public class ServerSocketData implements Runnable {
 					} else {
 						this.plugin.getLogger().info(ChatColor.GREEN + this.getServerName() + " has been re-added to the minigame queue.");
 					}
-				} else if (object instanceof PacketPlayInDecrementPlayerCount) {
-					this.players--;
 				} else if (object instanceof PacketPlayInRequestDisconnect) {
 					PacketPlayInRequestDisconnect packet = (PacketPlayInRequestDisconnect) object;
 					for (UUID uniqueId : packet.getPlayers()) {
@@ -202,7 +205,11 @@ public class ServerSocketData implements Runnable {
 							continue;
 						}
 
-						player.connect(this.plugin.getMinigameLobby());
+						ServerInfo server = this.plugin.getMinigameLobby();
+						if (!server.equals(player.getServer().getInfo())) {
+							player.connect(server);
+						}
+
 						player.sendMessage(new TextComponent(ChatColor.GREEN + "The server you were on has unexpectedly shutdown. You have been teleported back to the minigame lobby."));
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(player);
 						if (playerData != null) {
@@ -215,10 +222,10 @@ public class ServerSocketData implements Runnable {
 				} else if (object instanceof PacketPlayInDispatchCommand) {
 					PacketPlayInDispatchCommand packet = (PacketPlayInDispatchCommand) object;
 					ProxiedPlayer player = this.plugin.getProxy().getPlayer(packet.getPlayer());
-					if (player != null) {
-						this.plugin.getProxy().getPluginManager().dispatchCommand(player, "play " + packet.getMinigame() + "_" + packet.getMaxPlayers());
-					} else {
+					if (player == null) {
 						this.plugin.getLogger().warning("Failed to retrieve a player in the proxy with the name " + packet.getPlayer());
+					} else {
+						this.plugin.getProxy().getPluginManager().dispatchCommand(player, "play " + packet.getMinigame() + "_" + packet.getMaxPlayers());
 					}
 				} else if (object instanceof PacketPlayInUpdatePlayerCount) {
 					PacketPlayInUpdatePlayerCount packet = (PacketPlayInUpdatePlayerCount) object;
@@ -269,6 +276,7 @@ public class ServerSocketData implements Runnable {
 
 		MANHUNT("Manhunt"),
 		DEATH_SWAP("Death Swap"),
+		LOCK_OUT("Lock Out"),
 		BOAT_RACE("Boat Race"),
 		INACTIVE("Unknown");
 

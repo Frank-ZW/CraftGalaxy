@@ -33,7 +33,7 @@ public class ServerManager {
 	private Set<ServerSocketData> confirmations = new HashSet<>();
 	private BiMap<Integer, ServerSocketData> gameKeys = HashBiMap.create();
 	private final Random random = new Random();
-	private final TaskScheduler scheduler;
+	private TaskScheduler scheduler;
 	private ServerSocket serverSocket;
 	private boolean finished;
 	private static ServerManager instance;
@@ -62,6 +62,7 @@ public class ServerManager {
 	public static void disable() {
 		if (instance != null) {
 			instance.finished = true;
+			instance.scheduler.cancel(instance.plugin);
 			instance.minigames.values().forEach(ServerSocketData::disconnect);
 			instance.lobbies.values().forEach(ServerSocketData::disconnect);
 			instance.lobbies.clear();
@@ -71,6 +72,7 @@ public class ServerManager {
 			instance.queued.clear();
 			instance.actives.clear();
 			instance.confirmations.clear();
+			instance.scheduler = null;
 			instance.lobbies = null;
 			instance.minigames = null;
 			instance.gameKeys = null;
@@ -243,6 +245,10 @@ public class ServerManager {
 				minigame = ServerSocketData.Minigames.BOAT_RACE;
 				valid = maxPlayers >= 1 && maxPlayers <= 4;
 				break;
+			case "lockout":
+				minigame = ServerSocketData.Minigames.LOCK_OUT;
+				valid = maxPlayers >= 1 && maxPlayers <= 5;
+				break;
 			default:
 				sender.sendMessage(new TextComponent(ChatColor.RED + "That minigame has not been added to the server. To help the server grow, consider making a small donation through our webstore."));
 				return ServerSocketData.Minigames.INACTIVE;
@@ -259,7 +265,6 @@ public class ServerManager {
 	public void queueServer(@NotNull ServerSocketData serverData, boolean reset) {
 		if (reset) {
 			this.actives.remove(serverData);
-			this.plugin.getLogger().info(ChatColor.RED + "REMOVED ACTIVE SERVER IN #queueServer");
 			this.gameKeys.inverse().remove(serverData);
 			this.confirmations.remove(serverData);
 			this.removeFromQueued(serverData);

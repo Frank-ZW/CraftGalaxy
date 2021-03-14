@@ -13,8 +13,7 @@ import java.util.*;
 public class PlayerManager {
 
 	private final BungeeCore plugin;
-	private final Set<UUID> disconnections = new HashSet<>();
-//	private final Map<UUID, DisconnectData> disconnections = new HashMap<>();
+	private final Map<UUID, ServerInfo> disconnections = new HashMap<>();
 	private final Map<UUID, PlayerData> players = new HashMap<>();
 	private final TaskScheduler scheduler;
 	private static PlayerManager instance;
@@ -47,23 +46,20 @@ public class PlayerManager {
 	}
 
 	public void removeDisconnection(Collection<UUID> players) {
-		this.disconnections.removeAll(players);
+		this.disconnections.keySet().removeAll(players);
 	}
 
 	public void removeDisconnection(UUID uniqueId) {
 		this.disconnections.remove(uniqueId);
 	}
 
-	public void addPlayer(@NotNull ProxiedPlayer player) {
-		PlayerData playerData;
-		if (this.disconnections.remove(player.getUniqueId())) {
-			playerData = new PlayerData(player, PlayerData.PlayerStatus.PLAYING);
-		} else {
-			player.connect(this.plugin.getMainLobby());
-			playerData = new PlayerData(player);
-		}
+	@Nullable
+	public ServerInfo getDisconnectionServer(UUID uniqueId) {
+		return this.disconnections.remove(uniqueId);
+	}
 
-		this.players.put(player.getUniqueId(), playerData);
+	public void addPlayer(@NotNull ProxiedPlayer player) {
+		this.players.put(player.getUniqueId(), new PlayerData(player));
 	}
 
 	public void removePlayer(@NotNull ProxiedPlayer player) {
@@ -71,7 +67,7 @@ public class PlayerManager {
 		if (playerData != null && playerData.isPlaying()) {
 			ServerInfo server = player.getServer().getInfo();
 			if (this.plugin.isMinigameServer(server.getName())) {
-				this.disconnections.add(player.getUniqueId());
+				this.disconnections.put(player.getUniqueId(), player.getServer().getInfo());
 			}
 		}
 	}

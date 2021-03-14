@@ -38,7 +38,7 @@ public final class BungeeCore extends Plugin {
 	private int portNumber;
 
 	private final List<Command> commands = ImmutableList.of(new PlayCommand(this), new ForceEndCommand(this));
-	private final List<Listener> listeners = ImmutableList.of(new PlayerListener());
+	private final List<Listener> listeners = ImmutableList.of(new PlayerListener(this));
 
 	private static BungeeCore instance;
 
@@ -109,7 +109,10 @@ public final class BungeeCore extends Plugin {
 	}
 
 	private void writeConfig() {
-		this.config.set("minigame-game-key", this.gameKey == null ? 0 : this.gameKey.get());
+		if (this.gameKey != null) {
+			this.config.set("minigame-game-key", this.gameKey.get());
+		}
+
 		this.saveConfig();
 	}
 
