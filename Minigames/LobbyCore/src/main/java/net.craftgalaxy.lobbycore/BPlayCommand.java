@@ -10,11 +10,11 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-public final class NPCPlayCommand implements CommandExecutor {
+public final class BPlayCommand implements CommandExecutor {
 
 	private final LobbyCore plugin;
 
-	public NPCPlayCommand(LobbyCore plugin) {
+	public BPlayCommand(LobbyCore plugin) {
 		this.plugin = plugin;
 	}
 

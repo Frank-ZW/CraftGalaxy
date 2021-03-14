@@ -23,7 +23,7 @@ import java.util.logging.Level;
 
 public final class LobbyCore extends JavaPlugin {
 
-	private final Map<String, CommandExecutor> commands = Map.of("npcplay", new NPCPlayCommand(this));
+	private final Map<String, CommandExecutor> commands = Map.of("npcplay", new BPlayCommand(this));
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("LobbyCore Socket Executor").build());
 	private Future<Boolean> socketFuture;
 	private ObjectOutputStream output;
