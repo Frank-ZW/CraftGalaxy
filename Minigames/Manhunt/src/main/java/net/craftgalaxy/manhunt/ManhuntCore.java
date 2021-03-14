@@ -1,14 +1,10 @@
 package net.craftgalaxy.manhunt;
 
-import net.milkbowl.vault.chat.Chat;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ManhuntCore extends JavaPlugin {
 
-	private boolean bedBombing;
-	private Chat chatFormatter;
+	public static boolean BED_BOMBING_ENABLED;
 	private static ManhuntCore instance;
 
 	@Override
@@ -16,10 +12,6 @@ public final class ManhuntCore extends JavaPlugin {
 		instance = this;
 		this.saveDefaultConfig();
 		this.readConfig();
-		RegisteredServiceProvider<Chat> provider = Bukkit.getServicesManager().getRegistration(Chat.class);
-		if (provider != null) {
-			this.chatFormatter = provider.getProvider();
-		}
 	}
 
 	@Override
@@ -29,20 +21,12 @@ public final class ManhuntCore extends JavaPlugin {
 	}
 
 	public void readConfig() {
-		this.bedBombing = this.getConfig().getBoolean("settings.bed-bombing");
+		ManhuntCore.BED_BOMBING_ENABLED = this.getConfig().getBoolean("settings.bed-bombing");
 	}
 
 	public void writeConfig() {
-		this.getConfig().set("settings.bed-bombing", this.bedBombing);
+		this.getConfig().set("settings.bed-bombing", ManhuntCore.BED_BOMBING_ENABLED);
 		this.saveConfig();
-	}
-
-	public boolean isBedBombingDisabled() {
-		return !this.bedBombing;
-	}
-
-	public Chat getChatFormatter() {
-		return this.chatFormatter;
 	}
 
 	public static ManhuntCore getInstance() {

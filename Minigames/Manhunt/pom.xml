@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>Manhunt</artifactId>
+    <version>1.0.20</version>
     <packaging>jar</packaging>
     <name>Manhunt</name>
 

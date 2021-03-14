@@ -7,7 +7,6 @@ import net.craftgalaxy.manhunt.ManhuntCore;
 import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.minigame.SurvivalMinigame;
 import net.craftgalaxy.minigameservice.bukkit.util.ItemUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
 import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
@@ -32,13 +31,11 @@ import java.util.concurrent.TimeUnit;
 
 public final class Manhunt extends SurvivalMinigame {
 
-	private final ManhuntCore plugin;
 	private UUID speedrunner;
 	private final Set<UUID> hunters = new ObjectOpenHashSet<>();
 
 	public Manhunt(int gameKey, Location lobby) {
 		super("Manhunt", gameKey, lobby);
-		this.plugin = ManhuntCore.getInstance();
 	}
 
 	@Nullable
@@ -94,9 +91,9 @@ public final class Manhunt extends SurvivalMinigame {
 	 */
 	public void endMinigame(boolean runnerWinner, boolean urgently) {
 		if (runnerWinner) {
-			this.broadcast(ChatColor.GREEN + "The speedrunner has won the Manhunt.");
+			Bukkit.broadcastMessage(ChatColor.GREEN + "The speedrunner has won the Manhunt.");
 		} else {
-			this.broadcast(ChatColor.GREEN + "The hunters have won the Manhunt.");
+			Bukkit.broadcastMessage(ChatColor.GREEN + "The hunters have won the Manhunt.");
 		}
 
 		super.endMinigame(urgently);
@@ -137,57 +134,36 @@ public final class Manhunt extends SurvivalMinigame {
 	}
 
 	@Override
+	protected String startMessage(@NotNull UUID uniqueId) {
+		return this.isSpeedrunner(uniqueId) ? ChatColor.GREEN + "You are the speedrunner. You must kill the Enderdragon before the hunters kill you." : ChatColor.RED + "You are " + (this.hunters.size() == 1 ? "the" : "a") + " hunter. You must use your Player Tracker to relentlessly kill the speedrunner.";
+	}
+
+	@Override
+	protected boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle) {
+		if (this.isSpeedrunner(player.getUniqueId())) {
+			player.teleportAsync(this.getOverworld().getSpawnLocation()).thenAccept(result -> {
+				if (result) {
+					player.sendMessage(ChatColor.GREEN + "You are the speedrunner. You must kill the Enderdragon before the hunters kill you.");
+				} else {
+					player.sendMessage(ChatColor.RED + "Failed to teleport you to the Manhunt worlds. Contact an administrator if this occurs.");
+				}
+			});
+
+			return false;
+		} else {
+			player.getInventory().setItem(8, ItemUtil.createPlayerTracker());
+			return super.onPlayerStartTeleport(player, radius, angle);
+		}
+	}
+
+	@Override
 	public void startTeleport() {
-		super.startTeleport();
 		Player runner = this.getPlayerSpeedrunner();
 		if (runner == null) {
-			this.broadcast(ChatColor.RED + "An error occurred while retrieving the speedrunner. Contact an administrator if this occurs.");
-			return;
-		}
-
-		this.getOverworld().setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
-		float theta = -90.0F;
-		float delta = 360.0F / this.hunters.size();
-		int radius = Math.max(8, this.hunters.size() * 3);
-		Location spawn = this.getOverworld().getSpawnLocation();
-		for (UUID uniqueId : this.players) {
-			Player player = Bukkit.getPlayer(uniqueId);
-			if (player == null || !player.isOnline()) {
-				continue;
-			}
-
-			if (player.isDead()) {
-				player.spigot().respawn();
-			}
-
-			PlayerUtil.clearAdvancements(player);
-			PlayerUtil.resetAttributes(player);
-			if (this.isSpeedrunner(uniqueId)) {
-				player.teleportAsync(spawn).thenAccept(result -> {
-					if (result) {
-						player.sendMessage(ChatColor.GREEN + "You are the speedrunner. You must kill the Enderdragon before the hunters kill you.");
-					} else {
-						player.sendMessage(ChatColor.RED + "Failed to teleport you to the Manhunt worlds. Contact an administrator if this occurs.");
-					}
-				});
-			} else {
-				int x = (int) (spawn.getX() + radius * Math.cos(Math.toRadians(theta)));
-				int z = (int) (spawn.getZ() + radius * Math.sin(Math.toRadians(theta)));
-				int y = spawn.getWorld().getHighestBlockYAt(x, z);
-				Location hunter = new Location(spawn.getWorld(), x, y, z);
-				player.teleportAsync(hunter).thenAccept(result -> {
-					if (result) {
-						player.sendMessage(ChatColor.RED + "You are " + (this.hunters.size() == 1 ? "the" : "a") + " hunter. You must use your Player Tracker to relentlessly hunt and kill " + runner.getName() + ".");
-						player.getInventory().setItem(8, ItemUtil.createPlayerTracker());
-					} else {
-						player.sendMessage(ChatColor.RED + "Failed to teleport you to the Manhunt worlds. Contact an administrator if this occurs.");
-					}
-				});
-
-				theta += delta;
-			}
-
-			this.startTimestamp = System.currentTimeMillis();
+			Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while retrieving the speedrunner. Contact an administrator if this occurs.");
+			this.endMinigame(true);
+		} else {
+			super.startTeleport();
 		}
 	}
 
@@ -211,13 +187,22 @@ public final class Manhunt extends SurvivalMinigame {
 		String prefix = this.plugin.getChatFormatter() == null ? null : this.plugin.getChatFormatter().getPlayerPrefix(player);
 		if (this.status.isInProgress() || this.status.isFinished()) {
 			if (this.isSpectator(player.getUniqueId())) {
-				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
 			} else {
-				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null || prefix.length() == 0 ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
+				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
 			}
 		} else {
 			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
 		}
+	}
+
+	@Override
+	public void connectMessage(@NotNull Player player) {
+		if (this.isSpectator(player.getUniqueId())) {
+			return;
+		}
+
+		Bukkit.broadcastMessage((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " reconnected.");
 	}
 
 	@Override
@@ -226,7 +211,7 @@ public final class Manhunt extends SurvivalMinigame {
 			return;
 		}
 
-		this.broadcast((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " disconnected.");
+		Bukkit.broadcastMessage((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " disconnected.");
 	}
 
 	@Override
@@ -248,9 +233,11 @@ public final class Manhunt extends SurvivalMinigame {
 					this.updatePlayerTracker(player, e.getItem());
 				}
 
-				if (clicked != null && ItemUtil.isBedType(clicked.getType()) && player.getWorld().getEnvironment() == World.Environment.NETHER && e.getAction() == Action.RIGHT_CLICK_BLOCK && this.plugin.isBedBombingDisabled()) {
-					player.sendMessage(ChatColor.RED + "Bed bombing has been disabled in the Nether.");
+				if (e.getAction() == Action.RIGHT_CLICK_BLOCK && player.getWorld().getEnvironment() == World.Environment.NETHER && ItemUtil.isBedType(clicked) && !ManhuntCore.BED_BOMBING_ENABLED) {
 					e.setCancelled(true);
+					player.sendMessage("");
+					player.sendMessage(ChatColor.RED + "Bed bombing has been disabled. If you believe this is a mistake, submit a request to an administrator for bed bombing to be enabled.");
+					player.sendMessage("");
 				}
 			} else if (event instanceof PlayerDropItemEvent) {
 				PlayerDropItemEvent e = (PlayerDropItemEvent) event;
@@ -336,6 +323,11 @@ public final class Manhunt extends SurvivalMinigame {
 				if (this.isSpectator(e.getPlayer().getUniqueId())) {
 					e.setCancelled(true);
 				}
+			} else if (event instanceof PlayerAttemptPickupItemEvent) {
+				PlayerAttemptPickupItemEvent e = (PlayerAttemptPickupItemEvent) event;
+				if (this.isSpectator(player.getUniqueId())) {
+					e.setCancelled(true);
+				}
 			}
 		} else if (event instanceof PlayerDeathEvent) {
 			PlayerDeathEvent e = (PlayerDeathEvent) event;
@@ -368,33 +360,26 @@ public final class Manhunt extends SurvivalMinigame {
 			}
 		} else if (event instanceof EntityDamageEvent) {
 			EntityDamageEvent e = (EntityDamageEvent) event;
-			if (e.getEntity() instanceof Player) {
-				if (this.status.isFinished() || this.isSpectator(e.getEntity().getUniqueId())) {
-					e.setCancelled(true);
-				}
+			if (this.isPlayer(e.getEntity().getUniqueId()) && (this.status.isFinished() || this.isSpectator(e.getEntity().getUniqueId()))) {
+				e.setCancelled(true);
 			}
 		} else if (event instanceof BlockPlaceEvent) {
 			BlockPlaceEvent e = (BlockPlaceEvent) event;
 			Player player = e.getPlayer();
 			if (this.isSpectator(player.getUniqueId())) {
 				e.setCancelled(true);
-				return;
 			}
 
-			if (ItemUtil.isBedType(e.getBlock().getType()) && player.getWorld().getEnvironment() == World.Environment.NETHER && this.plugin.isBedBombingDisabled()) {
-				player.sendMessage(ChatColor.RED + "Bed bombing has been disabled in the Nether.");
+			if (player.getWorld().getEnvironment() == World.Environment.NETHER && ItemUtil.isBedType(e.getBlock().getType()) && !ManhuntCore.BED_BOMBING_ENABLED) {
+				player.sendMessage("");
+				player.sendMessage(ChatColor.RED + "Bed bombing has been disabled. If you believe this is a mistake, submit a request to an administrator for bed bombing to be enabled.");
+				player.sendMessage("");
 			}
+
 		} else if (event instanceof BlockBreakEvent) {
 			BlockBreakEvent e = (BlockBreakEvent) event;
 			if (this.isSpectator(e.getPlayer().getUniqueId())) {
 				e.setCancelled(true);
-			}
-		} else if (event instanceof EntityPickupItemEvent) {
-			EntityPickupItemEvent e = (EntityPickupItemEvent) event;
-			if (e.getEntity() instanceof Player) {
-				if (this.isSpectator(e.getEntity().getUniqueId())) {
-					e.setCancelled(true);
-				}
 			}
 		} else if (event instanceof FoodLevelChangeEvent) {
 			FoodLevelChangeEvent e = (FoodLevelChangeEvent) event;
@@ -408,26 +393,18 @@ public final class Manhunt extends SurvivalMinigame {
 			}
 		} else if (event instanceof VehicleEnterEvent) {
 			VehicleEnterEvent e = (VehicleEnterEvent) event;
-			if (!(e.getEntered() instanceof Player)) {
-				return;
-			}
-
 			if (this.isSpectator(e.getEntered().getUniqueId())) {
 				e.setCancelled(true);
 			}
-		} else if (event instanceof EntityTargetEvent) {
-			EntityTargetEvent e = (EntityTargetEvent) event;
-			if (e.getTarget() instanceof Player) {
-				if (this.isSpectator(e.getTarget().getUniqueId())) {
-					e.setCancelled(true);
-				}
+		} else if (event instanceof EntityTargetLivingEntityEvent) {
+			EntityTargetLivingEntityEvent e = (EntityTargetLivingEntityEvent) event;
+			if (e.getTarget() != null && this.isSpectator(e.getTarget().getUniqueId())) {
+				e.setCancelled(true);
 			}
 		} else if (event instanceof EntityCombustEvent) {
 			EntityCombustEvent e = (EntityCombustEvent) event;
-			if (e.getEntity() instanceof Player) {
-				if (this.isSpectator(e.getEntity().getUniqueId())) {
-					e.setCancelled(true);
-				}
+			if (this.isSpectator(e.getEntity().getUniqueId())) {
+				e.setCancelled(true);
 			}
 		}
 	}
@@ -435,13 +412,11 @@ public final class Manhunt extends SurvivalMinigame {
 	@Override
 	public void removePlayer(@NotNull Player player) {
 		super.removePlayer(player);
-		if (this.isSpeedrunner(player.getUniqueId())) {
-			if (this.status.isInProgress()) {
-				this.endMinigame(false, false);
-			} else {
-				this.speedrunner = null;
-			}
-		} else if (this.hunters.remove(player.getUniqueId()) && this.status.isInProgress() && this.hunters.isEmpty()) {
+		if (this.isSpeedrunner(player.getUniqueId()) && this.status.isInProgress()) {
+			this.endMinigame(false, false);
+		}
+
+		if (this.hunters.remove(player.getUniqueId()) && this.status.isInProgress() && this.hunters.isEmpty()) {
 			this.endMinigame(true, false);
 		}
 	}
