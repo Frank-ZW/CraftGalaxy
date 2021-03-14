@@ -2,6 +2,7 @@ package net.craftgalaxy.deathswap.runnable;
 
 import com.google.common.collect.ImmutableSet;
 import net.craftgalaxy.deathswap.minigame.DeathSwap;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -22,10 +23,10 @@ public final class SwapRunnable extends BukkitRunnable {
 	public void run() {
 		if (this.countdowns.contains(this.secondsRemaining)) {
 			if (this.secondsRemaining == 10) {
-				this.deathSwap.broadcast("");
+				Bukkit.broadcastMessage("");
 			}
 
-			this.deathSwap.broadcast(ChatColor.RED + "Swapping in " + this.secondsRemaining + " second" + (this.secondsRemaining == 1 ? "" : "s") + "!");
+			Bukkit.broadcastMessage(ChatColor.RED + "Swapping in " + this.secondsRemaining + " second" + (this.secondsRemaining == 1 ? "" : "s") + "!");
 		}
 
 		if (this.secondsRemaining <= 0) {

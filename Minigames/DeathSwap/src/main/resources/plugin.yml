@@ -3,4 +3,5 @@ main: net.craftgalaxy.deathswap.DeathSwapCore
 version: ${project.version}
 api-version: 1.16
 author: Frank
+load: POSTWORLD
 depend: [Vault, MinigameService]
