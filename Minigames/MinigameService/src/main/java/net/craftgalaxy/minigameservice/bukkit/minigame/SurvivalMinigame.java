@@ -2,16 +2,11 @@ package net.craftgalaxy.minigameservice.bukkit.minigame;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -84,6 +79,62 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	}
 
 	@Override
+	protected boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle) {
+		int x = (int) (this.getOverworld().getSpawnLocation().getX() + radius * Math.cos(Math.toRadians(angle)));
+		int z = (int) (this.getOverworld().getSpawnLocation().getZ() + radius * Math.sin(Math.toRadians(angle)));
+		int y = this.getOverworld().getHighestBlockYAt(x, z) + 1;
+		player.teleportAsync(new Location(this.getOverworld(), x, y, z)).thenAccept(result -> {
+			if (result) {
+				player.sendMessage(this.startMessage(player.getUniqueId()));
+			} else {
+				player.sendMessage(ChatColor.RED + "Failed to teleport you to the " + this.getName() + " world. Contact an administrator if this occurs.");
+			}
+		});
+
+		return true;
+	}
+
+	@Override
+	protected void onPlayerEndTeleport(@NotNull Player player) {
+		if (this.isSpectator(player.getUniqueId())) {
+			this.showSpectator(player);
+			PlayerUtil.unsetSpectator(player);
+		} else {
+			this.clearAwardedAdvancements(player);
+			PlayerUtil.resetAttributes(player);
+		}
+
+		player.teleport(this.lobby);
+	}
+
+	@Override
+	public void startTeleport() {
+		this.status = MinigameStatus.IN_PROGRESS;
+		this.getOverworld().setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+		int radius = Math.max(8, 3 * this.players.size());
+		float theta = -90.0F;
+		float delta = 360.0F / this.players.size();
+		for (UUID uniqueId : this.players) {
+			Player player = Bukkit.getPlayer(uniqueId);
+			if (player == null || !player.isOnline()) {
+				continue;
+			}
+
+			if (player.isDead()) {
+				player.spigot().respawn();
+			}
+
+			PlayerUtil.clearAdvancements(player);
+			PlayerUtil.resetAttributes(player);
+			if (this.onPlayerStartTeleport(player, radius, theta)) {
+				theta += delta;
+			}
+		}
+
+		this.startTimestamp = System.currentTimeMillis();
+	}
+
+	@Override
 	public void endTeleport() {
 		for (UUID uniqueId : this.players) {
 			Player player = Bukkit.getPlayer(uniqueId);
@@ -95,38 +146,15 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 				player.spigot().respawn();
 			}
 
-			if (this.isSpectator(uniqueId)) {
-				this.showSpectator(player);
-				PlayerUtil.unsetSpectator(player);
-			} else {
-				this.clearAwardedAdvancements(player);
-				PlayerUtil.resetAttributes(player);
-			}
-
-			player.teleport(this.lobby);
+			this.onPlayerEndTeleport(player);
 		}
 
-		super.endTeleport();
-	}
-
-	@Override
-	public void handleChatFormat(@NotNull AsyncPlayerChatEvent e) {
-		Player player = e.getPlayer();
-		if (this.isInProgress() || this.isFinished()) {
-			if (this.isSpectator(player.getUniqueId())) {
-				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			} else {
-				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + ChatColor.GREEN + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			}
-		} else {
-			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
-		}
+		this.status = MinigameStatus.WAITING;
 	}
 
 	@Override
 	public void cancelCountdown() {
 		super.cancelCountdown();
-		this.worlds.clear();
 		this.advancements.clear();
 	}
 

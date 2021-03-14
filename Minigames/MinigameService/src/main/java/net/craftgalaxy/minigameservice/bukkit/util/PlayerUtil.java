@@ -58,8 +58,6 @@ public class PlayerUtil {
 		player.setExhaustion(0.0F);
 		player.setLevel(0);
 		player.setExp(0.0F);
-		player.setAllowFlight(true);
-		player.setFlying(true);
 		player.setBedSpawnLocation(null);
 		player.getInventory().clear();
 		player.setGameMode(GameMode.ADVENTURE);
@@ -67,6 +65,9 @@ public class PlayerUtil {
 		if (player.getFireTicks() > 0) {
 			player.setFireTicks(0);
 		}
+
+		player.setAllowFlight(true);
+		player.setFlying(true);
 	}
 
 	public static void unsetSpectator(@NotNull Player player) {
@@ -78,7 +79,7 @@ public class PlayerUtil {
 		player.setExp(0.0F);
 		player.getInventory().clear();
 		player.setBedSpawnLocation(null);
-		player.setGameMode(GameMode.ADVENTURE);
+		player.setGameMode(GameMode.SURVIVAL);
 		player.setFallDistance(0.0F);
 		player.setFlying(false);
 		player.setAllowFlight(false);

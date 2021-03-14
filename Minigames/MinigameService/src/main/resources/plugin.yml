@@ -4,3 +4,5 @@ version: ${project.version}
 api-version: 1.16
 load: POSTWORLD
 author: Frank
+depend:
+  - Vault

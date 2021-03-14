@@ -3,6 +3,7 @@ package net.craftgalaxy.minigameservice.bukkit.util;
 import com.google.common.collect.ImmutableSet;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -69,5 +70,13 @@ public class ItemUtil {
 
 	public static boolean isBedType(Material material) {
 		return ItemUtil.BED_ITEMS.contains(material);
+	}
+
+	public static boolean isBedType(Block block) {
+		if (block == null) {
+			return false;
+		} else {
+			return ItemUtil.isBedType(block.getType());
+		}
 	}
 }
