@@ -2,7 +2,9 @@ package net.craftgalaxy.bungeecore.listener;
 
 import net.craftgalaxy.bungeecore.BungeeCore;
 import net.craftgalaxy.bungeecore.data.PlayerData;
+import net.craftgalaxy.bungeecore.data.ServerSocketData;
 import net.craftgalaxy.bungeecore.data.manager.PlayerManager;
+import net.craftgalaxy.bungeecore.data.manager.ServerManager;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.*;
@@ -33,6 +35,14 @@ public final class PlayerListener implements Listener {
 		if (playerData != null) {
 			e.setTarget(server);
 			playerData.setPlayerStatus(PlayerData.PlayerStatus.PLAYING);
+		}
+	}
+
+	@EventHandler
+	public void onServerSwitch(ServerSwitchEvent e) {
+		ServerSocketData serverData = ServerManager.getInstance().getServerData(e.getFrom());
+		if (serverData != null) {
+			serverData.handleServerSwitch(e.getPlayer());
 		}
 	}
 

@@ -49,7 +49,7 @@ public final class BungeeCore extends Plugin {
 		this.registerCommands();
 		this.registerListeners();
 		PlayerManager.enable(this);
-		ServerManager.getInstance();
+		ServerManager.enable(this);
 		if (failed) {
 			this.onDisable();
 		}

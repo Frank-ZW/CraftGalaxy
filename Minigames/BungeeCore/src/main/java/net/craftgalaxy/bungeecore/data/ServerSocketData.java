@@ -4,7 +4,6 @@ import net.craftgalaxy.bungeecore.BungeeCore;
 import net.craftgalaxy.bungeecore.data.manager.PlayerManager;
 import net.craftgalaxy.bungeecore.data.manager.ServerManager;
 import net.craftgalaxy.minigameservice.packet.MinigamePacketPlayOut;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutConfirmDisconnect;
 import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutQueuePlayer;
 import net.craftgalaxy.minigameservice.packet.impl.server.*;
 import net.md_5.bungee.api.ChatColor;
@@ -18,27 +17,30 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class ServerSocketData implements Runnable {
 
 	private final BungeeCore plugin;
 	private final Socket socket;
 	private final int id;
+	private final Set<UUID> awaitingDisconnections = new HashSet<>();
 	private ServerInfo server;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
 	private int players;
 	private int maxPlayers;
+	private boolean receivedDisconnectRequest;
 	private Minigames minigame;
-	private ServerStatus status;
 
 	public ServerSocketData(Socket socket, int id) {
 		this.plugin = BungeeCore.getInstance();
 		this.socket = socket;
 		this.id = id;
 		this.minigame = Minigames.INACTIVE;
-		this.status = ServerStatus.INACTIVE;
 	}
 
 	public void connect(@NotNull String serverName) {
@@ -50,21 +52,12 @@ public class ServerSocketData implements Runnable {
 		}
 	}
 
-	public void disconnect() {
-		ServerManager.getInstance().disconnectServer(this);
-		this.plugin.getLogger().info(ChatColor.GREEN + "Successfully interrupted TCP socket connection for " + this.server.getName() + ". This server will no longer receive minigame requests from the Proxy.");
-	}
-
 	public Minigames getMinigame() {
 		return this.minigame;
 	}
 
 	public void setMinigame(Minigames minigame) {
 		this.minigame = minigame;
-	}
-
-	public void setStatus(ServerStatus status) {
-		this.status = status;
 	}
 
 	public int getMaxPlayers() {
@@ -75,16 +68,8 @@ public class ServerSocketData implements Runnable {
 		this.maxPlayers = maxPlayers;
 	}
 
-	public int getPlayers() {
-		return this.players;
-	}
-
 	public void setPlayers(int players) {
 		this.players = players;
-	}
-
-	public ServerStatus getStatus() {
-		return this.status;
 	}
 
 	public int incrementPlayers() {
@@ -101,7 +86,6 @@ public class ServerSocketData implements Runnable {
 
 	public ServerSocketData reset() {
 		this.minigame = Minigames.INACTIVE;
-		this.status = ServerStatus.INACTIVE;
 		this.players = 0;
 		this.maxPlayers = 0;
 		return this;
@@ -135,17 +119,6 @@ public class ServerSocketData implements Runnable {
 				if (object instanceof PacketPlayInServerConnect) {
 					PacketPlayInServerConnect packet = (PacketPlayInServerConnect) object;
 					this.connect(packet.getName());
-				} else if (object instanceof PacketPlayInServerDisconnect) {
-					PacketPlayInServerDisconnect packet = (PacketPlayInServerDisconnect) object;
-					for (UUID uniqueId : packet.getPlayers()) {
-						ProxiedPlayer player = this.plugin.getProxy().getPlayer(uniqueId);
-						if (player != null) {
-							player.connect(this.plugin.getMainLobby());
-							player.sendMessage(new TextComponent(ChatColor.GREEN + "The server you were on abruptly went down. You have been teleported back to the main lobby."));
-						}
-					}
-
-					this.disconnect();
 				} else if (object instanceof PacketPlayInStartCountdown) {
 					PacketPlayInStartCountdown packet = (PacketPlayInStartCountdown) object;
 					ServerManager.getInstance().addActiveServer(this, packet.getGameKey());
@@ -157,8 +130,6 @@ public class ServerSocketData implements Runnable {
 							playerData.setPlayerStatus(PlayerData.PlayerStatus.PLAYING);
 						}
 					}
-
-					this.status = ServerStatus.IN_PROGRESS;
 				} else if (object instanceof PacketPlayInEndTeleport) {
 					PacketPlayInEndTeleport packet = (PacketPlayInEndTeleport) object;
 					for (UUID uniqueId : packet.getPlayers()) {
@@ -199,26 +170,27 @@ public class ServerSocketData implements Runnable {
 					}
 				} else if (object instanceof PacketPlayInRequestDisconnect) {
 					PacketPlayInRequestDisconnect packet = (PacketPlayInRequestDisconnect) object;
-					for (UUID uniqueId : packet.getPlayers()) {
-						ProxiedPlayer player = this.plugin.getProxy().getPlayer(uniqueId);
-						if (player == null) {
-							continue;
-						}
+					this.receivedDisconnectRequest = true;
+					this.awaitingDisconnections.addAll(packet.getPlayers());
+					if (this.awaitingDisconnections.isEmpty()) {
+						ServerManager.getInstance().disconnectServer(this);
+					} else {
+						for (UUID uniqueId : packet.getPlayers()) {
+							PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
+							if (playerData == null) {
+								continue;
+							}
 
-						ServerInfo server = this.plugin.getMinigameLobby();
-						if (!server.equals(player.getServer().getInfo())) {
-							player.connect(server);
-						}
+							ProxiedPlayer player = playerData.getPlayer();
+							ServerInfo server = this.plugin.getMinigameLobby();
+							if (!server.equals(player.getServer().getInfo())) {
+								player.connect(server);
+							}
 
-						player.sendMessage(new TextComponent(ChatColor.GREEN + "The server you were on has unexpectedly shutdown. You have been teleported back to the minigame lobby."));
-						PlayerData playerData = PlayerManager.getInstance().getPlayerData(player);
-						if (playerData != null) {
+							player.sendMessage(new TextComponent(ChatColor.GREEN + "The server you were on unexpectedly shut down. You have been connected back to the minigames lobby server."));
 							playerData.setPlayerStatus(PlayerData.PlayerStatus.INACTIVE);
 						}
 					}
-
-					ServerManager.getInstance().disconnectServer(this);
-					this.sendPacket(new PacketPlayOutConfirmDisconnect());
 				} else if (object instanceof PacketPlayInDispatchCommand) {
 					PacketPlayInDispatchCommand packet = (PacketPlayInDispatchCommand) object;
 					ProxiedPlayer player = this.plugin.getProxy().getPlayer(packet.getPlayer());
@@ -244,11 +216,9 @@ public class ServerSocketData implements Runnable {
 					this.plugin.getLogger().warning("Received unknown Minigame packet with " + object.getClass().getName() + ". This warning can most likely be safely ignored.");
 				}
 			}
-		} catch (Exception e) {
-			if (e instanceof EOFException) {
-				this.disconnect();
-			} else {
-				e.printStackTrace();
+		} catch (ClassNotFoundException | IOException e) {
+			if (!(e instanceof EOFException)) {
+				this.plugin.getLogger().log(Level.SEVERE, "An error occurred while closing the TCP socket connection", e);
 			}
 		} finally {
 			try {
@@ -261,19 +231,17 @@ public class ServerSocketData implements Runnable {
 		}
 	}
 
-	public enum ServerStatus {
-		INACTIVE,
-		QUEUED,
-		COUNTING_DOWN,
-		IN_PROGRESS;
-
-		ServerStatus() {
-
+	public void handleServerSwitch(ProxiedPlayer player) {
+		if (this.receivedDisconnectRequest && this.awaitingDisconnections.remove(player.getUniqueId()) && this.awaitingDisconnections.isEmpty()) {
+			try {
+				ServerManager.getInstance().disconnectServer(this);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
 	public enum Minigames {
-
 		MANHUNT("Manhunt"),
 		DEATH_SWAP("Death Swap"),
 		LOCK_OUT("Lock Out"),
