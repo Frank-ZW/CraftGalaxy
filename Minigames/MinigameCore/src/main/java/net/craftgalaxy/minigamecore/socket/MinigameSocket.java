@@ -13,13 +13,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-public class CoreSocket implements Runnable {
+public class MinigameSocket implements Runnable {
 
 	private final Socket socket;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
 
-	public CoreSocket() throws IOException {
+	public MinigameSocket() throws IOException {
 		this.socket = new Socket(MinigameCore.SOCKET_HOST_NAME, MinigameCore.SOCKET_PORT_NUMBER);
 	}
 

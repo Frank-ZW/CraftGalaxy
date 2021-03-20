@@ -1,9 +1,7 @@
 package net.craftgalaxy.minigamecore.command;
 
 import net.craftgalaxy.minigamecore.minigame.MinigameManager;
-import net.craftgalaxy.minigameservice.bukkit.minigame.AbstractMinigame;
-import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
-import net.craftgalaxy.minigameservice.packet.impl.server.PacketPlayInPlayerConnect;
+import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;

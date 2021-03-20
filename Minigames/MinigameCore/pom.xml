@@ -5,12 +5,13 @@
     <parent>
         <artifactId>Minigames</artifactId>
         <groupId>net.craftgalaxy</groupId>
-        <version>1.0.20</version>
+        <version>1.2.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>MinigameCore</artifactId>
     <packaging>jar</packaging>
+    <version>1.2.4</version>
     <name>MinigameCore</name>
 
     <properties>
@@ -21,7 +22,7 @@
     </properties>
 
     <build>
-        <finalName>MinigameCore</finalName>
+        <finalName>MinigameCore-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -92,25 +93,25 @@
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>MinigameService</artifactId>
-            <version>1.0.20</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>Manhunt</artifactId>
-            <version>1.0.20</version>
+            <version>1.1.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>DeathSwap</artifactId>
-            <version>1.0.0</version>
+            <version>1.1.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>LockOut</artifactId>
-            <version>1.0.0</version>
+            <version>1.2.4</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

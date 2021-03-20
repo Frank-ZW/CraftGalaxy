@@ -38,7 +38,7 @@ public final class MinigameCore extends JavaPlugin {
 		boolean shutdown = this.readConfig();
 		this.registerListeners();
 		this.registerCommands();
-		MinigameManager.getInstance();
+		MinigameManager.enable(this);
 		if (shutdown) {
 			Bukkit.getLogger().info(ChatColor.RED + "One or more errors was detected while reading the config.yml file. Before restarting the plugin, double check to make sure there are no errors during startup.");
 			Bukkit.getPluginManager().disablePlugin(this);
@@ -98,7 +98,7 @@ public final class MinigameCore extends JavaPlugin {
 				y = world.getHighestBlockYAt((int) x, (int) z);
 			}
 
-			this.lobbyLocation = new Location(world, x, y, z);
+			this.lobbyLocation = new Location(world, x, ++y, z);
 			return false;
 		} catch (NumberFormatException e) {
 			Bukkit.getLogger().warning("One or more fields entered in the configuration file does not match its designated type. Before restarting the server, check to make sure the port number and X, Y, Z values entered are a number.");
