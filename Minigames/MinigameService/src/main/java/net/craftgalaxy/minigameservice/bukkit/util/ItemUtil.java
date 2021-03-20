@@ -13,7 +13,7 @@ import java.util.Set;
 
 public class ItemUtil {
 
-
+	public static final String LOCKOUT_BOARD = ChatColor.GREEN + "Click to view the available challenges";
 	public static final String PLAYER_TRACKER = ChatColor.RED + "Player Tracker";
 	public static final String SPECTATOR_COMPASS = ChatColor.GREEN + "Spectator Compass";
 	public static final String SPECTATOR_QUIT = ChatColor.RED + "Leave the game";
@@ -36,6 +36,32 @@ public class ItemUtil {
 			Material.YELLOW_BED
 	);
 
+	private static final Set<Material> MUSIC_DISCS = ImmutableSet.of(
+			Material.MUSIC_DISC_11,
+			Material.MUSIC_DISC_13,
+			Material.MUSIC_DISC_BLOCKS,
+			Material.MUSIC_DISC_CAT,
+			Material.MUSIC_DISC_MALL,
+			Material.MUSIC_DISC_CHIRP,
+			Material.MUSIC_DISC_FAR,
+			Material.MUSIC_DISC_MELLOHI,
+			Material.MUSIC_DISC_PIGSTEP,
+			Material.MUSIC_DISC_STAL,
+			Material.MUSIC_DISC_STRAD,
+			Material.MUSIC_DISC_WAIT,
+			Material.MUSIC_DISC_WARD
+	);
+
+	public static ItemStack createLockoutBoard() {
+		ItemStack item = new ItemStack(Material.NETHER_STAR);
+		ItemMeta itemMeta = item.getItemMeta();
+		if (itemMeta != null) {
+			itemMeta.setDisplayName(ItemUtil.LOCKOUT_BOARD);
+			item.setItemMeta(itemMeta);
+		}
+
+		return item;
+	}
 
 	public static ItemStack createPlayerTracker() {
 		ItemStack item = new ItemStack(Material.COMPASS);
@@ -68,6 +94,10 @@ public class ItemUtil {
 		return item;
 	}
 
+	public static boolean isMusicDiscType(Material material) {
+		return ItemUtil.MUSIC_DISCS.contains(material);
+	}
+
 	public static boolean isBedType(Material material) {
 		return ItemUtil.BED_ITEMS.contains(material);
 	}
@@ -78,5 +108,17 @@ public class ItemUtil {
 		} else {
 			return ItemUtil.isBedType(block.getType());
 		}
+	}
+
+	public static boolean isChainmailArmorType(Material material) {
+		return material == Material.CHAINMAIL_BOOTS || material == Material.CHAINMAIL_LEGGINGS || material == Material.CHAINMAIL_CHESTPLATE || material == Material.CHAINMAIL_HELMET;
+	}
+
+	public static boolean isGoldenArmorType(Material material) {
+		return material == Material.GOLDEN_BOOTS || material == Material.GOLDEN_LEGGINGS || material == Material.GOLDEN_CHESTPLATE || material == Material.GOLDEN_HELMET;
+	}
+
+	public static boolean isIronArmorType(Material material) {
+		return material == Material.IRON_BOOTS || material == Material.IRON_LEGGINGS || material == Material.IRON_CHESTPLATE || material == Material.IRON_HELMET;
 	}
 }

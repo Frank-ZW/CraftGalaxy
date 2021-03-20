@@ -9,12 +9,18 @@ import java.util.UUID;
 public abstract class MinigameEvent extends Event {
 
 	protected AbstractMinigame minigame;
+	protected int gameKey;
 	protected Set<UUID> players;
 
 	public MinigameEvent(AbstractMinigame minigame, Set<UUID> players) {
 		super(false);
 		this.minigame = minigame;
+		this.gameKey = minigame.getGameKey();
 		this.players = players;
+	}
+
+	public int getGameKey() {
+		return this.gameKey;
 	}
 
 	public AbstractMinigame getMinigame() {

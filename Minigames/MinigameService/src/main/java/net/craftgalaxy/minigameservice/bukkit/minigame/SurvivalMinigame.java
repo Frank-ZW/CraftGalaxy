@@ -1,12 +1,15 @@
 package net.craftgalaxy.minigameservice.bukkit.minigame;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
 import org.bukkit.*;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -79,7 +82,7 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	}
 
 	@Override
-	protected boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle) {
+	protected boolean playerStartTeleport(@NotNull Player player, int radius, float angle) {
 		int x = (int) (this.getOverworld().getSpawnLocation().getX() + radius * Math.cos(Math.toRadians(angle)));
 		int z = (int) (this.getOverworld().getSpawnLocation().getZ() + radius * Math.sin(Math.toRadians(angle)));
 		int y = this.getOverworld().getHighestBlockYAt(x, z) + 1;
@@ -95,7 +98,7 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	}
 
 	@Override
-	protected void onPlayerEndTeleport(@NotNull Player player) {
+	protected void playerEndTeleport(@NotNull Player player) {
 		if (this.isSpectator(player.getUniqueId())) {
 			this.showSpectator(player);
 			PlayerUtil.unsetSpectator(player);
@@ -126,7 +129,7 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 
 			PlayerUtil.clearAdvancements(player);
 			PlayerUtil.resetAttributes(player);
-			if (this.onPlayerStartTeleport(player, radius, theta)) {
+			if (this.playerStartTeleport(player, radius, theta)) {
 				theta += delta;
 			}
 		}
@@ -146,7 +149,7 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 				player.spigot().respawn();
 			}
 
-			this.onPlayerEndTeleport(player);
+			this.playerEndTeleport(player);
 		}
 
 		this.status = MinigameStatus.WAITING;

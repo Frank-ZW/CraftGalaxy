@@ -5,16 +5,17 @@ import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.event.MinigameEndEvent;
 import net.craftgalaxy.minigameservice.bukkit.runnable.CountdownRunnable;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
+import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
+import net.milkbowl.vault.chat.Chat;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractMinigame {
 
@@ -53,6 +54,10 @@ public abstract class AbstractMinigame {
 
 	public boolean isFinished() {
 		return this.status.isFinished();
+	}
+
+	public String getRawName() {
+		return this.name.replaceAll("\\s+", "");
 	}
 
 	/**
@@ -118,18 +123,10 @@ public abstract class AbstractMinigame {
 	}
 
 	public void connectMessage(@NotNull Player player) {
-		if (this.isSpectator(player.getUniqueId())) {
-			return;
-		}
-
 		Bukkit.broadcastMessage(ChatColor.GREEN + player.getName() + ChatColor.GRAY + " reconnected.");
 	}
 
 	public void disconnectMessage(@NotNull Player player) {
-		if (this.isSpectator(player.getUniqueId())) {
-			return;
-		}
-
 		Bukkit.broadcastMessage(ChatColor.GREEN + player.getName() + ChatColor.GRAY + " disconnected.");
 	}
 
@@ -203,8 +200,45 @@ public abstract class AbstractMinigame {
 		Bukkit.getScheduler().cancelTasks(this.plugin);
 	}
 
-	protected abstract boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle);
-	protected abstract void onPlayerEndTeleport(@NotNull Player player);
+	public String getLobbyFormat(String originalFormat) {
+		return StringUtil.LOBBY_PREFIX + ChatColor.RESET + originalFormat;
+	}
+
+	public String getSpectatorFormat(Player player) {
+		String prefix = null;
+		Chat formatter = this.plugin.getChatFormatter();
+		if (formatter != null) {
+			prefix = formatter.getPlayerPrefix(player);
+		}
+
+		return StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
+	}
+
+	public String getPlayerFormat(Player player) {
+		String prefix = null;
+		Chat formatter = this.plugin.getChatFormatter();
+		if (formatter != null) {
+			prefix = formatter.getPlayerPrefix(player);
+		}
+
+		return StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.GREEN + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
+	}
+
+	/**
+	 * Returns a long in ticks representing the maximum length the minigame can last. The timestamp
+	 * is in terms of ticks, meaning the value should be converted to seconds and multiplied by 20.
+	 * <p>
+	 * If the value returned is negative, the result will be ignored and the scheduler will not be
+	 * executed.
+	 *
+	 * @return  The maximum length that the given minigame can last for.
+	 */
+	public long getScheduledForceEndTimestamp() {
+		return TimeUnit.HOURS.toSeconds(3) * 20;
+	}
+
+	protected abstract boolean playerStartTeleport(@NotNull Player player, int radius, float angle);
+	protected abstract void playerEndTeleport(@NotNull Player player);
 	protected abstract String startMessage(@NotNull UUID uniqueId);
 	public abstract void startTeleport();
 	public abstract void endTeleport();
@@ -212,20 +246,6 @@ public abstract class AbstractMinigame {
 	public abstract boolean worldsLoaded();
 	public abstract void deleteWorlds() throws IOException;
 	public abstract void handleEvent(@NotNull Event e);
-
-	public void handleChatFormat(@NotNull AsyncPlayerChatEvent e) {
-		Player player = e.getPlayer();
-		String prefix = this.plugin.getChatFormatter() == null ? null : this.plugin.getChatFormatter().getPlayerPrefix(player);
-		if (this.status.isInProgress() || this.status.isFinished()) {
-			if (this.isSpectator(player.getUniqueId())) {
-				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			} else {
-				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.GREEN + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			}
-		} else {
-			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
-		}
-	}
 
 	public enum MinigameStatus {
 		WAITING,

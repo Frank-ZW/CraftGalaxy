@@ -1,4 +1,4 @@
-package net.craftgalaxy.minigameservice.bukkit.util;
+package net.craftgalaxy.minigameservice.bukkit.util.java;
 
 import org.bukkit.ChatColor;
 
