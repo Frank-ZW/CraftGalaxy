@@ -7,7 +7,8 @@ import net.craftgalaxy.manhunt.ManhuntCore;
 import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.minigame.SurvivalMinigame;
 import net.craftgalaxy.minigameservice.bukkit.util.ItemUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.StringUtil;
+import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
+import net.milkbowl.vault.chat.Chat;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -139,7 +140,7 @@ public final class Manhunt extends SurvivalMinigame {
 	}
 
 	@Override
-	protected boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle) {
+	protected boolean playerStartTeleport(@NotNull Player player, int radius, float angle) {
 		if (this.isSpeedrunner(player.getUniqueId())) {
 			player.teleportAsync(this.getOverworld().getSpawnLocation()).thenAccept(result -> {
 				if (result) {
@@ -152,7 +153,7 @@ public final class Manhunt extends SurvivalMinigame {
 			return false;
 		} else {
 			player.getInventory().setItem(8, ItemUtil.createPlayerTracker());
-			return super.onPlayerStartTeleport(player, radius, angle);
+			return super.playerStartTeleport(player, radius, angle);
 		}
 	}
 
@@ -182,35 +183,23 @@ public final class Manhunt extends SurvivalMinigame {
 	}
 
 	@Override
-	public void handleChatFormat(@NotNull AsyncPlayerChatEvent e) {
-		Player player = e.getPlayer();
-		String prefix = this.plugin.getChatFormatter() == null ? null : this.plugin.getChatFormatter().getPlayerPrefix(player);
-		if (this.status.isInProgress() || this.status.isFinished()) {
-			if (this.isSpectator(player.getUniqueId())) {
-				e.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			} else {
-				e.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s");
-			}
-		} else {
-			e.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + e.getFormat());
+	public String getPlayerFormat(Player player) {
+		String prefix = null;
+		Chat formatter = this.plugin.getChatFormatter();
+		if (formatter != null) {
+			prefix = formatter.getPlayerPrefix(player);
 		}
+
+		return StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
 	}
 
 	@Override
 	public void connectMessage(@NotNull Player player) {
-		if (this.isSpectator(player.getUniqueId())) {
-			return;
-		}
-
 		Bukkit.broadcastMessage((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " reconnected.");
 	}
 
 	@Override
 	public void disconnectMessage(@NotNull Player player) {
-		if (this.isSpectator(player.getUniqueId())) {
-			return;
-		}
-
 		Bukkit.broadcastMessage((this.isSpeedrunner(player.getUniqueId()) ? ChatColor.GREEN : ChatColor.RED) + player.getName() + ChatColor.GRAY + " disconnected.");
 	}
 
@@ -238,30 +227,6 @@ public final class Manhunt extends SurvivalMinigame {
 					player.sendMessage("");
 					player.sendMessage(ChatColor.RED + "Bed bombing has been disabled. If you believe this is a mistake, submit a request to an administrator for bed bombing to be enabled.");
 					player.sendMessage("");
-				}
-			} else if (event instanceof PlayerDropItemEvent) {
-				PlayerDropItemEvent e = (PlayerDropItemEvent) event;
-				if (this.isSpectator(player.getUniqueId())) {
-					e.setCancelled(true);
-					return;
-				}
-
-				if (this.isHunter(player.getUniqueId())) {
-					ItemStack drop = e.getItemDrop().getItemStack();
-					if (this.isPlayerTracker(drop)) {
-						e.setCancelled(true);
-						player.sendMessage(ChatColor.RED + "You cannot drop your Player Tracker!");
-					}
-				}
-			} else if (event instanceof PlayerRespawnEvent) {
-				PlayerRespawnEvent e = (PlayerRespawnEvent) event;
-				if (this.getOverworld() == null) {
-					return;
-				}
-
-				e.setRespawnLocation(player.getBedSpawnLocation() == null ? this.getOverworld().getSpawnLocation() : player.getBedSpawnLocation());
-				if (this.isHunter(player.getUniqueId())) {
-					player.getInventory().setItem(8, ItemUtil.createPlayerTracker());
 				}
 			} else if (event instanceof PlayerPortalEvent) {
 				PlayerPortalEvent e = (PlayerPortalEvent) event;
@@ -305,6 +270,30 @@ public final class Manhunt extends SurvivalMinigame {
 						break;
 					default:
 				}
+			} else if (event instanceof PlayerDropItemEvent) {
+				PlayerDropItemEvent e = (PlayerDropItemEvent) event;
+				if (this.isSpectator(player.getUniqueId())) {
+					e.setCancelled(true);
+					return;
+				}
+
+				if (this.isHunter(player.getUniqueId())) {
+					ItemStack drop = e.getItemDrop().getItemStack();
+					if (this.isPlayerTracker(drop)) {
+						e.setCancelled(true);
+						player.sendMessage(ChatColor.RED + "You cannot drop your Player Tracker!");
+					}
+				}
+			} else if (event instanceof PlayerRespawnEvent) {
+				PlayerRespawnEvent e = (PlayerRespawnEvent) event;
+				if (this.getOverworld() == null) {
+					return;
+				}
+
+				e.setRespawnLocation(player.getBedSpawnLocation() == null ? this.getOverworld().getSpawnLocation() : player.getBedSpawnLocation());
+				if (this.isHunter(player.getUniqueId())) {
+					player.getInventory().setItem(8, ItemUtil.createPlayerTracker());
+				}
 			} else if (event instanceof PlayerPickupExperienceEvent) {
 				PlayerPickupExperienceEvent e = (PlayerPickupExperienceEvent) event;
 				if (this.isSpectator(player.getUniqueId())) {
@@ -331,17 +320,18 @@ public final class Manhunt extends SurvivalMinigame {
 			}
 		} else if (event instanceof PlayerDeathEvent) {
 			PlayerDeathEvent e = (PlayerDeathEvent) event;
-			if (this.status.isFinished() || this.isSpectator(e.getEntity().getUniqueId())) {
-				e.setCancelled(true);
-				return;
-			}
-
 			if (this.status.isInProgress()) {
 				if (this.isSpeedrunner(e.getEntity().getUniqueId())) {
 					this.endMinigame(false, false);
 				} else {
 					e.getDrops().removeIf(this::isPlayerTracker);
 				}
+
+				return;
+			}
+
+			if (this.isSpeedrunner(e.getEntity().getUniqueId()) || this.status.isFinished()) {
+				e.setCancelled(true);
 			}
 		} else if (event instanceof EntityDamageByEntityEvent) {
 			EntityDamageByEntityEvent e = (EntityDamageByEntityEvent) event;

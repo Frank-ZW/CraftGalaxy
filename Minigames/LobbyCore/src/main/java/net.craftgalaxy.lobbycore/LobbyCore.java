@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -20,12 +21,13 @@ import java.net.Socket;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public final class LobbyCore extends JavaPlugin {
 
 	private final Map<String, CommandExecutor> commands = Map.of("npcplay", new BPlayCommand(this));
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("LobbyCore Socket Executor").build());
-	private Future<Boolean> socketFuture;
+	private Future<Boolean> future;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
 	private Socket lobbySocket;
@@ -38,7 +40,7 @@ public final class LobbyCore extends JavaPlugin {
 		this.saveDefaultConfig();
 		this.readConfig();
 		this.registerCommands();
-		this.socketFuture = this.executor.submit(() -> {
+		this.future = this.executor.submit(() -> {
 			try {
 				this.lobbySocket = new Socket(this.socketHostName, this.socketPortNumber);
 				this.output = new ObjectOutputStream(this.lobbySocket.getOutputStream());
@@ -69,14 +71,14 @@ public final class LobbyCore extends JavaPlugin {
 	@Override
 	public void onDisable() {
 		this.executor.shutdown();
-		if (this.lobbySocket != null && this.socketFuture != null) {
+		if (this.lobbySocket != null && this.future != null) {
 			try {
-				this.sendPacket(new PacketPlayInRequestDisconnect(Bukkit.getOnlinePlayers()));
-				if (this.socketFuture.get(10, TimeUnit.SECONDS)) {
-					Bukkit.getLogger().info(ChatColor.GREEN + "Successfully disconnected established TCP socket connection with the Proxy.");
+				this.sendPacket(new PacketPlayInRequestDisconnect(Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toSet())));
+				if (this.future.get(10, TimeUnit.SECONDS)) {
+					Bukkit.getLogger().info(ChatColor.GREEN + "Successfully disconnected established TCP socket connection with the proxy.");
 				}
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				Bukkit.getLogger().log(Level.SEVERE, "An error occurred while interrupting the established TCP socket connection with the Proxy", e);
+				Bukkit.getLogger().log(Level.SEVERE, "An error occurred while interrupting the established TCP socket connection with the proxy", e);
 			}
 		}
 

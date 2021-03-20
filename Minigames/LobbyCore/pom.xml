@@ -5,12 +5,13 @@
     <parent>
         <artifactId>Minigames</artifactId>
         <groupId>net.craftgalaxy</groupId>
-        <version>1.0.20</version>
+        <version>1.2.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>LobbyCore</artifactId>
     <packaging>jar</packaging>
+    <version>1.1.0</version>
     <name>LobbyCore</name>
 
     <properties>
@@ -21,7 +22,7 @@
     </properties>
 
     <build>
-        <finalName>LobbyCore</finalName>
+        <finalName>LobbyCore-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -86,7 +87,7 @@
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>MinigameService</artifactId>
-            <version>1.0.20</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

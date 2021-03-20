@@ -7,7 +7,7 @@
     <groupId>net.craftgalaxy</groupId>
     <artifactId>Minigames</artifactId>
     <packaging>pom</packaging>
-    <version>1.0.20</version>
+    <version>1.2.2</version>
     <modules>
         <module>BungeeCore</module>
         <module>MinigameService</module>

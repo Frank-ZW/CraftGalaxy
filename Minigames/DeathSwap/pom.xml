@@ -5,12 +5,12 @@
     <parent>
         <artifactId>Minigames</artifactId>
         <groupId>net.craftgalaxy</groupId>
-        <version>1.0.20</version>
+        <version>1.2.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>DeathSwap</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
     <name>DeathSwap</name>
 
@@ -22,7 +22,7 @@
     </properties>
 
     <build>
-        <finalName>DeathSwap</finalName>
+        <finalName>DeathSwap-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -93,7 +93,7 @@
         <dependency>
             <groupId>net.craftgalaxy</groupId>
             <artifactId>MinigameService</artifactId>
-            <version>1.0.20</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
