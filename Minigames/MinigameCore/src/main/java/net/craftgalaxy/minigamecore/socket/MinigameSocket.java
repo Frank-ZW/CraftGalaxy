@@ -28,6 +28,10 @@ public class CoreSocket implements Runnable {
 		this.output.flush();
 	}
 
+	public boolean isConnected() {
+		return this.socket.isConnected();
+	}
+
 	@Override
 	public void run() {
 		try {

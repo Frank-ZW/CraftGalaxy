@@ -1,38 +1,161 @@
 package net.craftgalaxy.lockout.minigame;
 
+import com.destroystokyo.paper.event.block.TNTPrimeEvent;
+import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import com.google.common.collect.Iterables;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.craftgalaxy.lockout.challenge.AbstractChallenge;
+import net.craftgalaxy.lockout.challenge.impl.advancements.ChallengeMaximumBeacon;
+import net.craftgalaxy.lockout.challenge.impl.advancements.ChallengeObtainDiamonds;
+import net.craftgalaxy.lockout.challenge.impl.advancements.ChallengeObtainWitherSkull;
+import net.craftgalaxy.lockout.challenge.impl.advancements.ChallengeSummonWither;
+import net.craftgalaxy.lockout.challenge.impl.armor.ChallengeWearChainArmor;
+import net.craftgalaxy.lockout.challenge.impl.armor.ChallengeWearGoldArmor;
+import net.craftgalaxy.lockout.challenge.impl.armor.ChallengeWearIronArmor;
+import net.craftgalaxy.lockout.challenge.impl.armor.ChallengeWearTurtleShell;
+import net.craftgalaxy.lockout.challenge.impl.consume.ChallengeConsumeNotchApple;
+import net.craftgalaxy.lockout.challenge.impl.consume.ChallengeConsumeSuspiciousStew;
+import net.craftgalaxy.lockout.challenge.impl.entity.*;
+import net.craftgalaxy.lockout.challenge.impl.interact.*;
+import net.craftgalaxy.lockout.challenge.impl.inventory.ChallengeBrewHealingPotion;
+import net.craftgalaxy.lockout.challenge.impl.inventory.ChallengeCraftEnderChest;
+import net.craftgalaxy.lockout.challenge.impl.inventory.ChallengeRepairItem;
+import net.craftgalaxy.lockout.challenge.impl.misc.*;
+import net.craftgalaxy.lockout.challenge.impl.movement.ChallengeExploreIceSpikedBiome;
+import net.craftgalaxy.lockout.challenge.impl.movement.ChallengeExploreMushroomBiome;
+import net.craftgalaxy.lockout.challenge.impl.movement.ChallengeReachBedrock;
+import net.craftgalaxy.lockout.challenge.impl.movement.ChallengeReachHeightLimit;
+import net.craftgalaxy.lockout.challenge.impl.structure.*;
+import net.craftgalaxy.lockout.challenge.types.*;
+import net.craftgalaxy.lockout.runnable.StructureReportRunnable;
+import net.craftgalaxy.lockout.team.Team;
+import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.minigame.SurvivalMinigame;
+import net.craftgalaxy.minigameservice.bukkit.util.ItemUtil;
+import net.craftgalaxy.minigameservice.bukkit.util.java.MathUtil;
+import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
+import net.milkbowl.vault.chat.Chat;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.Event;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
-import org.bukkit.event.player.PlayerBedEnterEvent;
-import org.bukkit.event.player.PlayerEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.spigotmc.event.entity.EntityMountEvent;
 
 import java.util.*;
+import java.util.logging.Level;
 
 public final class LockOut extends SurvivalMinigame {
 
-	private final Random random = new Random();
-	private final BossBar challengeBar;
-	private final List<ChallengeType> incompleted = new ObjectArrayList<>(ChallengeType.values());
-	private final Map<UUID, Integer> completed = new Object2ObjectOpenHashMap<>();
-	private ChallengeType challenge;
+	private static final int HEIGHT = 5;
+	private static final String BOARD_TITLE = ChatColor.DARK_BLUE + "LockOut Challenge Board";
+	private static final LinkedHashMap<ChatColor, Material> GUI_COLORS = new LinkedHashMap<>() {{
+		this.put(ChatColor.GREEN, Material.LIME_CONCRETE);
+		this.put(ChatColor.BLUE, Material.BLUE_CONCRETE);
+		this.put(ChatColor.YELLOW, Material.YELLOW_CONCRETE);
+		this.put(ChatColor.GRAY, Material.GRAY_CONCRETE);
+	}};
+	private static final List<Class<? extends AbstractChallenge<?>>> CHALLENGES = Arrays.asList(
+			ChallengeObtainDiamonds.class,
+			ChallengeWearChainArmor.class,
+			ChallengeWearGoldArmor.class,
+			ChallengeWearIronArmor.class,
+			ChallengeWearTurtleShell.class,
+			ChallengeConsumeSuspiciousStew.class,
+			ChallengeConsumeNotchApple.class,
+			ChallengeBreedChicken.class,
+			ChallengeBreedHorse.class,
+			ChallengeKillWither.class,
+			ChallengeShearSheep.class,
+			ChallengeSignBook.class,
+			ChallengeSummonWither.class,
+			ChallengeTameCat.class,
+			ChallengeUseNametag.class,
+			ChallengeFillComposter.class,
+			ChallengeLightFirework.class,
+			ChallengeLootBuriedTreasure.class,
+			ChallengeLootShipwreckTreasure.class,
+			ChallengePlayMusicDisc.class,
+			ChallengeBrewHealingPotion.class,
+			ChallengeCraftEnderChest.class,
+			ChallengeEnchantItem.class,
+			ChallengeEnterBed.class,
+			ChallengeFallDamageDeath.class,
+			ChallengePrimeTNT.class,
+			ChallengeExploreIceSpikedBiome.class,
+			ChallengeExploreMushroomBiome.class,
+			ChallengeReachBedrock.class,
+			ChallengeReachHeightLimit.class,
+			ChallengeMountLlama.class,
+			ChallengeKillSlime.class,
+			ChallengeRepairItem.class,
+			ChallengeLevitationEffect.class,
+			ChallengeWitherDamage.class,
+			ChallengeLocateBastion.class,
+			ChallengeLocateFossil.class,
+			ChallengeLocateEndCity.class,
+			ChallengeLocateNetherFortress.class,
+			ChallengeLocateStronghold.class,
+			ChallengeLocateVillage.class,
+			ChallengeLocateSwampHut.class,
+			ChallengeLocateDesertPyramid.class,
+			ChallengeMaximumBeacon.class,
+			ChallengeObtainWitherSkull.class,
+			ChallengeSummonWither.class,
+			ChallengeMountLlama.class
+	);
+
+	private List<StructureLocateChallenge> structures = new ArrayList<>();
+	private List<AbstractChallenge<?>> uncompleted = new ArrayList<>();
+	private Map<UUID, Team> teams = new Object2ObjectOpenHashMap<>();
+	private Map<AbstractChallenge<?>, Integer> guiIndex = new Object2ObjectOpenHashMap<>();
+	private BukkitRunnable structureReportRunnable;
+	private int completionThreshold;
+	private Inventory challengeGui;
 
 	public LockOut(int gameKey, Location lobby) {
 		super("Lock Out", gameKey, lobby);
-		this.challenge = this.incompleted.remove(this.random.nextInt(this.incompleted.size()));
-		this.challengeBar = Bukkit.createBossBar(this.challenge.getDisplayName(), this.challenge.getBarColor(), BarStyle.SOLID);
-		this.challengeBar.setVisible(true);
-		this.challengeBar.setProgress(1.0D);
+		this.challengeGui = Bukkit.createInventory(null, LockOut.HEIGHT * 9, LockOut.BOARD_TITLE);
+		List<Class<? extends AbstractChallenge<?>>> selected = MathUtil.selectNRandomElements(LockOut.CHALLENGES, 25, this.random);
+		int i = 0;
+		try {
+			for (int y = 0; y < 5; y++) {
+				for (int x = 2; x < 7; x++) {
+					AbstractChallenge<?> challenge = selected.get(i++).getConstructor(LockOut.class).newInstance(this);
+					if (challenge instanceof StructureLocateChallenge) {
+						this.structures.add((StructureLocateChallenge) challenge);
+					} else {
+						this.uncompleted.add(challenge);
+					}
+
+					ItemStack icon = new ItemStack(Material.RED_CONCRETE);
+					ItemMeta iconMeta = icon.getItemMeta();
+					if (iconMeta != null) {
+						iconMeta.setDisplayName(ChatColor.RED + challenge.getDisplayMessage());
+						icon.setItemMeta(iconMeta);
+					}
+
+					int index = x + 9 * y;
+					this.challengeGui.setItem(index, icon);
+					this.guiIndex.put(challenge, index);
+				}
+			}
+		} catch (ReflectiveOperationException e) {
+			Bukkit.getLogger().log(Level.SEVERE, "Failed to create one or more challenges", e);
+			Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while loading in one or more challenge(s). Contact an administrator if this occurs.");
+			this.endMinigame(true);
+		}
 	}
 
 	@Override
@@ -43,7 +166,7 @@ public final class LockOut extends SurvivalMinigame {
 
 		for (int i = 0; i < 3; i++) {
 			World.Environment environment = World.Environment.values()[i];
-			World world = new WorldCreator(this.gameKey + "_" + StringUtils.lowerCase(String.valueOf(environment))).environment(environment).createWorld();
+			World world = new WorldCreator( StringUtils.capitalize(this.getRawName()) + "_" + this.gameKey + "_" + StringUtils.lowerCase(String.valueOf(environment))).environment(environment).createWorld();
 			if (world != null) {
 				if (environment == World.Environment.NORMAL) {
 					world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
@@ -67,196 +190,313 @@ public final class LockOut extends SurvivalMinigame {
 	@Override
 	public void unload() {
 		super.unload();
-		this.completed.clear();
-		this.incompleted.clear();
-		Collections.addAll(this.incompleted, ChallengeType.values());
+		this.guiIndex.keySet().forEach(AbstractChallenge::reset);
+		this.structures.clear();
+		this.uncompleted.clear();
+		this.teams.clear();
+		this.guiIndex.clear();
+		this.structures = null;
+		this.uncompleted = null;
+		this.teams = null;
+		this.guiIndex = null;
+		this.structureReportRunnable = null;
+		this.challengeGui = null;
 	}
 
 	@Override
 	protected String startMessage(@NotNull UUID uniqueId) {
-		return ChatColor.GREEN + "This is a test";
+		return ChatColor.GREEN + "Right click the Nether Star to view the available challenges. The player with the most amount of challenges completed wins the Lock Out.";
 	}
 
 	@Override
-	protected boolean onPlayerStartTeleport(@NotNull Player player, int radius, float angle) {
-		this.challengeBar.addPlayer(player);
-		return super.onPlayerStartTeleport(player, radius, angle);
+	public void connectMessage(@NotNull Player player) {
+		Team team = this.teams.get(player.getUniqueId());
+		if (team != null) {
+			Bukkit.broadcastMessage(team.getChatColor() + player.getName() + ChatColor.GREEN + " reconnected.");
+		}
 	}
 
 	@Override
-	public void endTeleport() {
-		this.challengeBar.removeAll();
-		super.endTeleport();
+	public void disconnectMessage(@NotNull Player player) {
+		Team team = this.teams.get(player.getUniqueId());
+		if (team != null) {
+			Bukkit.broadcastMessage(team.getChatColor() + player.getName() + ChatColor.GREEN + " disconnected.");
+		}
+	}
+
+	public boolean isLockOutBoard(@Nullable ItemStack item) {
+		return item != null && item.getType() == Material.NETHER_STAR && item.getItemMeta().getDisplayName().equals(ItemUtil.LOCKOUT_BOARD);
+	}
+
+	public void openLockOutBoard(@NotNull Player player) {
+		player.closeInventory(InventoryCloseEvent.Reason.PLUGIN);
+		player.openInventory(this.challengeGui);
+	}
+
+	@Override
+	protected boolean playerStartTeleport(@NotNull Player player, int radius, float angle) {
+		player.getInventory().setItem(8, ItemUtil.createLockoutBoard());
+		return super.playerStartTeleport(player, radius, angle);
+	}
+
+	@Override
+	public void removePlayer(@NotNull Player player) {
+		super.removePlayer(player);
+		this.teams.remove(player.getUniqueId());
+		switch (this.teams.size()) {
+			case 0:
+				this.endMinigame(true, null);
+				break;
+			case 1:
+				Team team = Iterables.getOnlyElement(this.teams.values(), null);
+				this.endMinigame(false, team);
+				break;
+			default:
+		}
+	}
+
+	@Override
+	public String getPlayerFormat(Player player) {
+		String prefix = null;
+		Chat formatter = this.plugin.getChatFormatter();
+		if (formatter != null) {
+			prefix = formatter.getPlayerPrefix(player);
+		}
+
+		Team team = this.teams.get(player.getUniqueId());
+		return StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + (team == null ? ChatColor.RED : team.getChatColor()) + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
+	}
+
+	public boolean checkStructureChallenges(Player player) {
+		this.structures.removeIf(challenge -> challenge.handleEvent(player));
+		return this.structures.isEmpty();
 	}
 
 	@Override
 	public void handleEvent(@NotNull Event event) {
 		if (event instanceof PlayerEvent) {
 			Player player = ((PlayerEvent) event).getPlayer();
-			if (event instanceof PlayerBedEnterEvent) {
-				if (this.challenge == ChallengeType.LIE_IN_BED && this.challenge.isIncomplete()) {
-					this.completeChallenge(player);
+			if (event instanceof PlayerPortalEvent) {
+				PlayerPortalEvent e = (PlayerPortalEvent) event;
+				if (e.getTo().getWorld() == null || e.getFrom().getWorld() == null || e.isCancelled()) {
+					return;
 				}
-			} else if (event instanceof PlayerAttemptPickupItemEvent) {
-				PlayerAttemptPickupItemEvent e = (PlayerAttemptPickupItemEvent) event;
-				if (this.challenge == ChallengeType.OBTAIN_DIAMONDS && this.challenge.isIncomplete() && e.getItem().getItemStack().getType() == Material.DIAMOND) {
-					this.completeChallenge(player);
+
+				World fromWorld = e.getFrom().getWorld();
+				switch (e.getCause()) {
+					case NETHER_PORTAL:
+						switch (fromWorld.getEnvironment()) {
+							case NORMAL:
+								e.getTo().setWorld(this.getNether());
+								if (this.players.contains(player.getUniqueId()) && !this.spectators.contains(player.getUniqueId())) {
+									BukkitService.getInstance().grantNetherAdvancement(player);
+								}
+
+								break;
+							case NETHER:
+								e.setTo(new Location(this.getOverworld(), e.getFrom().getX() * 8.0D, e.getFrom().getY(), e.getFrom().getZ() * 8.0D));
+								break;
+							default:
+						}
+
+						break;
+					case END_PORTAL:
+						switch (fromWorld.getEnvironment()) {
+							case NORMAL:
+								e.getTo().setWorld(this.getEnd());
+								if (this.players.contains(player.getUniqueId()) && !this.spectators.contains(player.getUniqueId())) {
+									BukkitService.getInstance().grantEndAdvancement(player);
+								}
+
+								break;
+							case THE_END:
+								e.setTo(player.getBedSpawnLocation() == null ? this.getOverworld().getSpawnLocation() : player.getBedSpawnLocation());
+								break;
+							default:
+						}
+
+						break;
+					default:
 				}
 			} else if (event instanceof PlayerRespawnEvent) {
 				PlayerRespawnEvent e = (PlayerRespawnEvent) event;
+				player.getInventory().setItem(8, ItemUtil.createLockoutBoard());
 				e.setRespawnLocation(player.getBedSpawnLocation() == null ? this.getOverworld().getSpawnLocation() : player.getBedSpawnLocation());
+			} else if (event instanceof PlayerBedEnterEvent) {
+				PlayerBedEnterEvent e = (PlayerBedEnterEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerBedEnterChallenge && ((PlayerBedEnterChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerInteractEvent) {
+				PlayerInteractEvent e = (PlayerInteractEvent) event;
+				if (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR) {
+					ItemStack item = player.getInventory().getItemInMainHand();
+					if (item.getType().isAir()) {
+						item = player.getInventory().getItemInOffHand();
+					}
+
+					if (this.isLockOutBoard(item)) {
+						this.openLockOutBoard(player);
+						return;
+					}
+				}
+
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerInteractChallenge && ((PlayerInteractChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerAdvancementDoneEvent) {
+				PlayerAdvancementDoneEvent e = (PlayerAdvancementDoneEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerAdvancementChallenge && ((PlayerAdvancementChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerArmorChangeEvent) {
+				PlayerArmorChangeEvent e = (PlayerArmorChangeEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerArmorChallenge && ((PlayerArmorChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerItemConsumeEvent) {
+				PlayerItemConsumeEvent e = (PlayerItemConsumeEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerConsumeChallenge && ((PlayerConsumeChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerEditBookEvent) {
+				PlayerEditBookEvent e = (PlayerEditBookEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerEditBookChallenge && ((PlayerEditBookChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerInteractEntityEvent) {
+				PlayerInteractEntityEvent e = (PlayerInteractEntityEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerEntityInteractChallenge && ((PlayerEntityInteractChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerMoveEvent) {
+				if (this.status.isInProgress()) {
+					PlayerMoveEvent e = (PlayerMoveEvent) event;
+					this.uncompleted.removeIf(challenge -> challenge instanceof PlayerMovementChallenge && ((PlayerMovementChallenge) challenge).handleEvent(e));
+				}
+			} else if (event instanceof PlayerShearEntityEvent) {
+				PlayerShearEntityEvent e = (PlayerShearEntityEvent) event;
+				this.uncompleted.removeIf(challenge -> challenge instanceof PlayerShearChallenge && ((PlayerShearChallenge) challenge).handleEvent(e));
+			} else if (event instanceof PlayerDropItemEvent) {
+				PlayerDropItemEvent e = (PlayerDropItemEvent) event;
+				if (this.isLockOutBoard(e.getItemDrop().getItemStack())) {
+					e.setCancelled(true);
+					player.sendMessage(ChatColor.RED + "You cannot drop your Challenge Board.");
+				}
 			}
 		} else if (event instanceof EntityDamageEvent) {
 			EntityDamageEvent e = (EntityDamageEvent) event;
-			if (!(e.getEntity() instanceof Player)) {
+			if (!this.status.isFinished()) {
+				this.uncompleted.removeIf(challenge -> challenge instanceof EntityDamageChallenge && ((EntityDamageChallenge) challenge).handleEvent(e));
+			} else if (e.getEntity() instanceof Player) {
+				e.setCancelled(true);
+			}
+		} else if (event instanceof PlayerDeathEvent) {
+			PlayerDeathEvent e = (PlayerDeathEvent) event;
+			e.getDrops().removeIf(this::isLockOutBoard);
+		} else if (event instanceof EntityBreedEvent) {
+			EntityBreedEvent e = (EntityBreedEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof EntityBreedChallenge && ((EntityBreedChallenge) challenge).handleEvent(e));
+		} else if (event instanceof EntityDeathEvent) {
+			EntityDeathEvent e = (EntityDeathEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof EntityDeathChallenge && ((EntityDeathChallenge) challenge).handleEvent(e));
+		} else if (event instanceof CreatureSpawnEvent) {
+			CreatureSpawnEvent e = (CreatureSpawnEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof EntitySpawnChallenge && ((EntitySpawnChallenge) challenge).handleEvent(e));
+		} else if (event instanceof EntityTameEvent) {
+			EntityTameEvent e = (EntityTameEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof EntityTameChallenge && ((EntityTameChallenge) challenge).handleEvent(e));
+		} else if (event instanceof EnchantItemEvent) {
+			EnchantItemEvent e = (EnchantItemEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof ItemEnchantChallenge && ((ItemEnchantChallenge) challenge).handleEvent(e));
+		} else if (event instanceof InventoryClickEvent) {
+			InventoryClickEvent e = (InventoryClickEvent) event;
+			if (e.getView().getTitle().equals(LockOut.BOARD_TITLE)) {
+				e.setCancelled(true);
 				return;
 			}
 
-			if (this.status.isFinished()) {
-				e.setCancelled(true);
-			} else {
-				Player player = (Player) e.getEntity();
-				if (player.getHealth() - e.getDamage() <= 0 && this.challenge == ChallengeType.DEATH_FALL_DAMAGE && this.challenge.isIncomplete() && e.getCause() == EntityDamageEvent.DamageCause.FALL) {
-					this.completeChallenge(player);
-				}
-			}
+			this.uncompleted.removeIf(challenge -> challenge instanceof PlayerInventoryClickChallenge && ((PlayerInventoryClickChallenge) challenge).handleEvent(e));
+		} else if (event instanceof TNTPrimeEvent) {
+			TNTPrimeEvent e = (TNTPrimeEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof TNTPrimeChallenge && ((TNTPrimeChallenge) challenge).handleEvent(e));
+		} else if (event instanceof EntityMountEvent) {
+			EntityMountEvent e = (EntityMountEvent) event;
+			this.uncompleted.removeIf(challenge -> challenge instanceof EntityMountChallenge && ((EntityMountChallenge) challenge).handleEvent(e));
 		}
 	}
 
 	@Override
 	public void startCountdown(@NotNull List<UUID> players) {
+		this.completionThreshold = (int) Math.ceil(25.0D / players.size());
+		Set<Map.Entry<ChatColor, Material>> entries = LockOut.GUI_COLORS.entrySet();
+		int index = 0;
+		for (UUID uniqueId : players) {
+			OfflinePlayer offline = Bukkit.getOfflinePlayer(uniqueId);
+			Map.Entry<ChatColor, Material> entry = Iterables.get(entries, index++);
+			this.teams.put(uniqueId, new Team(offline.getName(), entry.getKey(), entry.getValue()));
+		}
+
+		this.structureReportRunnable = new StructureReportRunnable(this);
+		this.structureReportRunnable.runTaskTimerAsynchronously(this.plugin, 400, 20);
 		super.startCountdown(players);
-		players.parallelStream().forEach(uniqueId -> this.completed.put(uniqueId, 0));
 	}
 
 	@Override
-	public void endMinigame(boolean urgently) {
-		int score = 0;
-		List<UUID> winners = new ArrayList<>();
-		for (Map.Entry<UUID, Integer> entry : this.completed.entrySet()) {
-			if (entry.getValue() == 0) {
-				continue;
-			}
+	public void cancelCountdown() {
+		super.cancelCountdown();
+		this.structureReportRunnable.cancel();
+		this.completionThreshold = 0;
+		this.teams.clear();
+	}
 
-			if (winners.isEmpty()) {
-				winners.add(entry.getKey());
-				score = entry.getValue();
-				continue;
-			}
-
-			if (entry.getValue() > score) {
-				winners.clear();
-				winners.add(entry.getKey());
-				score = entry.getValue();
-			} else if (entry.getValue() == score) {
-				winners.add(entry.getKey());
-			}
+	public void endMinigame(boolean urgently, @Nullable Team team) {
+		if (!this.structureReportRunnable.isCancelled()) {
+			this.structureReportRunnable.cancel();
 		}
 
-		switch (winners.size()) {
-			case 0: {
-				Bukkit.broadcastMessage(ChatColor.RED + "There were no winners! You guys all sucked.");
-				break;
-			} case 1: {
-				OfflinePlayer winner = Bukkit.getOfflinePlayer(winners.get(0));
-				Bukkit.broadcastMessage(ChatColor.GREEN + winner.getName() + " won the " + this.getName() + " with " + score + " challenges completed.");
-				break;
-			} case 2: {
-				OfflinePlayer winner1 = Bukkit.getOfflinePlayer(winners.get(0));
-				OfflinePlayer winner2 = Bukkit.getOfflinePlayer(winners.get(1));
-				Bukkit.broadcastMessage(ChatColor.GREEN + winner1.getName() + " and " + winner2.getName() + " won the " + this.getName() + " with " + score + " challenges completed.");
-			} default: {
-				StringBuilder result = new StringBuilder();
-				for (int i = 0; i < winners.size(); i++) {
-					OfflinePlayer winner = Bukkit.getOfflinePlayer(winners.get(i));
-					if (i == winners.size() - 1) {
-						result.append("and ").append(winner.getName());
-					} else {
-						result.append(winner.getName()).append(", ");
-					}
-				}
-
-				Bukkit.broadcastMessage(ChatColor.GREEN + result.toString() + " have won the " + this.getName() + " with " + score + " challenges completed.");
-			}
+		if (team != null) {
+			Bukkit.broadcastMessage("");
+			Bukkit.broadcastMessage(team.getChatColor() + team.getName() + ChatColor.WHITE + " won the " + ChatColor.GREEN + this.getName() + ChatColor.WHITE + " with " + ChatColor.GREEN + team.getCompleted() + " challenges " + ChatColor.WHITE + "completed!");
+			Bukkit.broadcastMessage("");
 		}
 
 		super.endMinigame(urgently);
 	}
 
-	private void completeChallenge(@NotNull Player player) {
-		this.challenge.setCompleted(true);
-		Bukkit.broadcastMessage("");
-		Bukkit.broadcastMessage(ChatColor.GREEN + player.getName() + " has completed the challenge: " + this.challenge.getDisplayName());
-		Bukkit.broadcastMessage("");
-
-		Integer challenges = this.completed.get(player.getUniqueId());
-		if (challenges == null) {
-			challenges = 0;
+	public void completeChallenge(Player player, AbstractChallenge<?> challenge) {
+		Team team = this.teams.get(player.getUniqueId());
+		if (challenge.isCompleted() || team == null) {
+			return;
 		}
 
-		this.completed.put(player.getUniqueId(), ++challenges);
-		if (this.incompleted.isEmpty()) {
-			this.endMinigame(false);
-		} else {
-			this.challenge = this.incompleted.remove(this.random.nextInt(this.incompleted.size()));
-			this.challengeBar.setTitle(this.challenge.getDisplayName());
-			this.challengeBar.setColor(this.challenge.getBarColor());
+		challenge.setCompleted(true);
+		int index = this.guiIndex.get(challenge);
+		ItemStack item = this.challengeGui.getItem(index);
+		if (item != null) {
+			item.setType(team.getIcon());
+			ItemMeta itemMeta = item.getItemMeta();
+			if (itemMeta != null) {
+				itemMeta.setDisplayName(ChatColor.GREEN + challenge.getDisplayMessage());
+				itemMeta.setLore(Collections.singletonList(team.getChatColor() + "Completed by " + player.getName()));
+				item.setItemMeta(itemMeta);
+			}
+
+			this.challengeGui.setItem(index, item);
+			this.teams.computeIfPresent(player.getUniqueId(), (k, v) -> v.incrementCompleted());
+			this.challengeGui.getViewers().forEach(v -> ((Player) v).updateInventory());
+		}
+
+		Bukkit.broadcastMessage("");
+		Bukkit.broadcastMessage(team.getChatColor() + player.getName() + ChatColor.RESET + ChatColor.WHITE + " has completed the challenge: " + ChatColor.GREEN + ChatColor.BOLD + challenge.getDisplayMessage());
+		Bukkit.broadcastMessage("");
+		if (team.getCompleted() >= this.completionThreshold || this.uncompleted.size() - 1 <= 0) {
+			this.endMinigame(false, team);
 		}
 	}
 
-	public enum ChallengeType {
-		DEATH_FALL_DAMAGE(BarColor.BLUE, "Die from Fall Damage"),
-		LIE_IN_BED(BarColor.GREEN, "Lie down in a bed"),
-		OBTAIN_DIAMONDS(BarColor.GREEN, "Find diamonds"),
-		BREED_HORSE(BarColor.GREEN, "Breed a horse"),
-		BREED_CHICKEN(BarColor.GREEN, "Breed a chicken"),
-		SHEAR_SHEEP(BarColor.BLUE, "Shear a sheep"),
-		REACH_HEIGHT_LIMIT(BarColor.BLUE, "Reach the world height limit"),
-		OBTAIN_GOLD_ARMOR(BarColor.BLUE, "Obtain a full set of gold armor"),
-		BREW_HEALING_POTION(BarColor.BLUE, "Brew a potion of healing"),
-		SUMMON_WHITHER(BarColor.GREEN, "Summon the Whither"),
-		EAT_SUSPICIOUS_STEW(BarColor.BLUE, "Eat a suspicious stew"),
-		WEAR_TURTLE_SHELL(BarColor.GREEN, "Wear a turtle shell"),
-		MAKE_ENDER_CHEST(BarColor.GREEN, "Craft an Ender Chest"),
-		LIGHT_FIREWORK(BarColor.BLUE, "Light a firework"),
-		OBTAIN_CHAINMAIL_ARMOR(BarColor.GREEN, "Obtain a full set of chainmail armor"),
-		APPLY_NAMETAG(BarColor.BLUE, "Use a nametag"),
-		ENCHANT_ITEM_STACK(BarColor.GREEN, "Enchant an item"),
-		FIND_STRONGHOLD(BarColor.GREEN, "Find a Stronghold"),
-		FIND_SWAMP_HUT(BarColor.GREEN, "Find a swamp hut"),
-		FIND_BURIED_TREASURE(BarColor.GREEN, "Find buried treasure"),
-		REACH_BEDROCK(BarColor.BLUE, "Reach the bedrock level"),
-		PUBLISH_BOOK(BarColor.GREEN, "Publish a book"),
-		COMPOST_FOOD(BarColor.BLUE, "Compost some food"),
-		FIND_END_CITY(BarColor.GREEN, "Find an End City"),
-		TAME_CAT(BarColor.GREEN, "Tame an Ocelot"),
-		KILL_WHITHER(BarColor.BLUE, "Kill the Whither"),
-		FIND_JUNGLE_TEMPLE(BarColor.BLUE, "Find a Jungle Temple");
+	@Override
+	public int hashCode() {
+		return 19 * this.gameKey;
+	}
 
-		private final BarColor barColor;
-		private final String displayName;
-		private boolean completed;
-
-		ChallengeType(BarColor barColor, String displayName) {
-			this.barColor = barColor;
-			this.displayName = displayName;
-			this.completed = false;
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
 		}
 
-		public BarColor getBarColor() {
-			return this.barColor;
+		if (!(obj instanceof LockOut)) {
+			return false;
 		}
 
-		public String getDisplayName() {
-			return this.displayName;
-		}
-
-		public boolean isIncomplete() {
-			return !this.completed;
-		}
-
-		public void setCompleted(boolean completed) {
-			this.completed = completed;
-		}
+		LockOut o = (LockOut) obj;
+		return this.gameKey == o.getGameKey();
 	}
 }
