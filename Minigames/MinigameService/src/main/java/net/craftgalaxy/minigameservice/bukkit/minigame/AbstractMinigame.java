@@ -1,17 +1,37 @@
 package net.craftgalaxy.minigameservice.bukkit.minigame;
 
+import com.destroystokyo.paper.event.player.PlayerAdvancementCriterionGrantEvent;
+import com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.event.MinigameEndEvent;
 import net.craftgalaxy.minigameservice.bukkit.runnable.CountdownRunnable;
+import net.craftgalaxy.minigameservice.bukkit.util.ItemUtil;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
-import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
 import net.milkbowl.vault.chat.Chat;
+import net.minecraft.server.v1_16_R1.NBTTagCompound;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
+import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
+import org.bukkit.craftbukkit.v1_16_R1.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.CompassMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.*;
@@ -40,24 +60,63 @@ public abstract class AbstractMinigame {
 		this.status = MinigameStatus.WAITING;
 	}
 
+	/**
+	 * Returns true if the mini-game is in the waiting stage. The waiting stage is the duration when the
+	 * mini-game is not active and has not started the countdown.
+	 *
+	 * @return  True if the mini-game is waiting, false otherwise.
+	 */
 	public boolean isWaiting() {
 		return this.status.isWaiting();
 	}
 
+	/**
+	 * Returns true if the mini-game is counting down before the server sends the players to the spawning location.
+	 *
+	 * @return  True if the mini-game is counting down, false otherwise.
+	 */
 	public boolean isCountingDown() {
 		return this.status.isCountingDown();
 	}
 
+	/**
+	 * Returns true if the mini-game is in progress. A mini-game is in progress when the countdown has finished but
+	 * the game has not ended yet.
+	 *
+	 * @return  True if the mini-game is in progress, false otherwise.
+	 */
 	public boolean isInProgress() {
 		return this.status.isInProgress();
 	}
 
+	/**
+	 * Returns true if the mini-game is finished. A mini-game is finished during the period of time after the victory
+	 * message has been broadcasted but the players have not been sent back to the lobby yet.
+	 *
+	 * @return  True if the mini-game is finished, false otherwise.
+	 */
 	public boolean isFinished() {
 		return this.status.isFinished();
 	}
 
+	/**
+	 * Returns the raw name of the mini-game. The raw name is the display name with all spaces
+	 * removed.
+	 *
+	 * @return  The raw name of the mini-game.
+	 */
 	public String getRawName() {
 		return this.name.replaceAll("\\s+", "");
+	}
+
+	/**
+	 * Returns a name of the world being created.
+	 *
+	 * @param environment   The environment of the world being created.
+	 * @return              The name of the world to be created.
+	 */
+	public String getWorldName(World.Environment environment) {
+		return StringUtils.capitalize(this.getRawName()) + "_" + this.gameKey + "_" + StringUtils.lowerCase(String.valueOf(environment));
 	}
 
 	/**
@@ -87,7 +146,15 @@ public abstract class AbstractMinigame {
 		return this.players.contains(uniqueId);
 	}
 
+	/**
+	 * Adds the specified player to the mini-game players list and hides the
+	 * spectator from all other in-game players.
+	 *
+	 * @param spectator The player spectating.
+	 */
 	public void hideSpectator(@NotNull Player spectator) {
+		this.players.add(spectator.getUniqueId());
+		this.spectators.add(spectator.getUniqueId());
 		for (UUID uniqueId : this.players) {
 			Player other = Bukkit.getPlayer(uniqueId);
 			if (other == null || this.isSpectator(uniqueId)) {
@@ -122,12 +189,14 @@ public abstract class AbstractMinigame {
 		}
 	}
 
-	public void connectMessage(@NotNull Player player) {
-		Bukkit.broadcastMessage(ChatColor.GREEN + player.getName() + ChatColor.GRAY + " reconnected.");
-	}
-
-	public void disconnectMessage(@NotNull Player player) {
-		Bukkit.broadcastMessage(ChatColor.GREEN + player.getName() + ChatColor.GRAY + " disconnected.");
+	/**
+	 * Returns a String representing the display name of the player in chat.
+	 *
+	 * @param offline   The player's offline instance.
+	 * @return          The chat format of the player's name.
+	 */
+	public String getFormattedDisplayName(OfflinePlayer offline) {
+		return ChatColor.GREEN + offline.getName();
 	}
 
 	public void broadcastTitleAndEffect(@NotNull String message, @NotNull Effect effect) {
@@ -200,8 +269,14 @@ public abstract class AbstractMinigame {
 		Bukkit.getScheduler().cancelTasks(this.plugin);
 	}
 
-	public String getLobbyFormat(String originalFormat) {
-		return StringUtil.LOBBY_PREFIX + ChatColor.RESET + originalFormat;
+	public String getPlayerPrefix(Player player) {
+		String prefix = null;
+		Chat formatter = this.plugin.getChatFormatter();
+		if (formatter != null) {
+			prefix = formatter.getPlayerPrefix(player);
+		}
+
+		return (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + this.getFormattedDisplayName(player);
 	}
 
 	public String getSpectatorFormat(Player player) {
@@ -211,33 +286,121 @@ public abstract class AbstractMinigame {
 			prefix = formatter.getPlayerPrefix(player);
 		}
 
-		return StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
-	}
-
-	public String getPlayerFormat(Player player) {
-		String prefix = null;
-		Chat formatter = this.plugin.getChatFormatter();
-		if (formatter != null) {
-			prefix = formatter.getPlayerPrefix(player);
-		}
-
-		return StringUtil.MINIGAME_PREFIX + ChatColor.RESET + (prefix == null ? "" : ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.GREEN + ChatColor.stripColor("%s") + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + "%s";
+		return (prefix == null ? "" : " " + ChatColor.translateAlternateColorCodes('&', prefix) + ChatColor.RESET + " ") + ChatColor.BLUE + player.getName();
 	}
 
 	/**
-	 * Returns a long in ticks representing the maximum length the minigame can last. The timestamp
-	 * is in terms of ticks, meaning the value should be converted to seconds and multiplied by 20.
+	 * Returns a long representing the maximum length the game can last. The timestamp is in seconds.
 	 * <p>
 	 * If the value returned is negative, the result will be ignored and the scheduler will not be
 	 * executed.
 	 *
-	 * @return  The maximum length that the given minigame can last for.
+	 * @return  The maximum length that the given game can last for.
 	 */
 	public long getScheduledForceEndTimestamp() {
-		return TimeUnit.HOURS.toSeconds(3) * 20;
+		return TimeUnit.HOURS.toSeconds(3);
 	}
 
-	protected abstract boolean playerStartTeleport(@NotNull Player player, int radius, float angle);
+	public boolean isSpectatorCompass(@Nullable ItemStack item) {
+		if (item == null) {
+			return false;
+		}
+
+		net.minecraft.server.v1_16_R1.ItemStack nmsItem = CraftItemStack.asNMSCopy(item);
+		NBTTagCompound compound = nmsItem.getTag();
+		return item.getItemMeta() instanceof CompassMeta && compound != null && compound.getBoolean("spectator_compass");
+	}
+
+	public void handleSpectatorEvent(@NotNull Event e) {
+		if (e instanceof PlayerInteractEvent) {
+			PlayerInteractEvent event = (PlayerInteractEvent) e;
+			event.setCancelled(true);
+			Player player = event.getPlayer();
+			Block clicked = event.getClickedBlock();
+			if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+				ItemStack item = event.getItem();
+				if (this.isSpectatorCompass(item)) {
+					Inventory inventory = Bukkit.createInventory(player, 36, ItemUtil.SPECTATOR_GUI);
+					for (UUID uniqueId : this.players) {
+						if (this.isSpectator(uniqueId)) {
+							continue;
+						}
+
+						OfflinePlayer offline = Bukkit.getOfflinePlayer(uniqueId);
+						ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+						SkullMeta meta = (SkullMeta) head.getItemMeta();
+						if (meta != null) {
+							meta.setDisplayName(this.getFormattedDisplayName(offline));
+							meta.setOwningPlayer(offline);
+							head.setItemMeta(meta);
+						}
+
+						inventory.addItem(head);
+					}
+
+					player.closeInventory(InventoryCloseEvent.Reason.PLUGIN);
+					player.openInventory(inventory);
+					return;
+				}
+			}
+
+			if (event.getAction() == Action.RIGHT_CLICK_BLOCK && clicked != null && clicked.getState() instanceof Chest) {
+				Chest chest = (Chest) clicked.getState();
+				player.closeInventory(InventoryCloseEvent.Reason.PLUGIN);
+				player.openInventory(chest.getInventory());
+			}
+		} else if (e instanceof PlayerPickupExperienceEvent) {
+			((PlayerPickupExperienceEvent) e).setCancelled(true);
+		} else if (e instanceof PlayerPickupArrowEvent) {
+			((PlayerPickupArrowEvent) e).setCancelled(true);
+		} else if (e instanceof PlayerAdvancementCriterionGrantEvent) {
+			((PlayerAdvancementCriterionGrantEvent) e).setCancelled(true);
+		} else if (e instanceof EntityPickupItemEvent) {
+			((EntityPickupItemEvent) e).setCancelled(true);
+		} else if (e instanceof PlayerDeathEvent) {
+			((PlayerDeathEvent) e).setCancelled(true);
+		} else if (e instanceof PlayerDropItemEvent) {
+			((PlayerDropItemEvent) e).setCancelled(true);
+		} else if (e instanceof EntityDamageByEntityEvent) {
+			((EntityDamageByEntityEvent) e).setCancelled(true);
+		} else if (e instanceof EntityDamageEvent) {
+			((EntityDamageEvent) e).setCancelled(true);
+		} else if (e instanceof BlockPlaceEvent) {
+			((BlockPlaceEvent) e).setCancelled(true);
+		} else if (e instanceof BlockBreakEvent) {
+			((BlockBreakEvent) e).setCancelled(true);
+		} else if (e instanceof FoodLevelChangeEvent) {
+			((FoodLevelChangeEvent) e).setCancelled(true);
+		} else if (e instanceof InventoryClickEvent) {
+			InventoryClickEvent event = (InventoryClickEvent) e;
+			event.setCancelled(true);
+			if (event.getView().getTitle().equals(ItemUtil.SPECTATOR_GUI)) {
+				ItemStack clicked = event.getCurrentItem();
+				if (clicked != null && clicked.getType() == Material.PLAYER_HEAD) {
+					Player spectated = Bukkit.getPlayer(ChatColor.stripColor(clicked.getItemMeta().getDisplayName()));
+					if (spectated != null) {
+						Player player = (Player) event.getWhoClicked();
+						player.closeInventory(InventoryCloseEvent.Reason.TELEPORT);
+						player.teleportAsync(spectated.getLocation()).thenAccept(result -> {
+							if (result) {
+								player.sendMessage(ChatColor.GREEN + "You are now spectating " + spectated.getName());
+							} else {
+								player.sendMessage(ChatColor.RED + "Failed to teleport you to " + spectated.getName());
+							}
+						});
+					}
+				}
+			}
+		} else if (e instanceof VehicleEnterEvent) {
+			((VehicleEnterEvent) e).setCancelled(true);
+		} else if (e instanceof EntityTargetLivingEntityEvent) {
+			((EntityTargetLivingEntityEvent) e).setCancelled(true);
+		} else if (e instanceof EntityCombustEvent) {
+			((EntityCombustEvent) e).setCancelled(true);
+		}
+	}
+
+	protected abstract boolean playerStartTeleport(@NotNull Player player, Location to);
 	protected abstract void playerEndTeleport(@NotNull Player player);
 	protected abstract String startMessage(@NotNull UUID uniqueId);
 	public abstract void startTeleport();
@@ -245,7 +408,7 @@ public abstract class AbstractMinigame {
 	public abstract boolean createWorlds();
 	public abstract boolean worldsLoaded();
 	public abstract void deleteWorlds() throws IOException;
-	public abstract void handleEvent(@NotNull Event e);
+	public abstract void handlePlayerEvent(@NotNull Event e);
 
 	public enum MinigameStatus {
 		WAITING,

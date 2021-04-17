@@ -3,21 +3,22 @@ package net.craftgalaxy.minigameservice.packet.impl.server;
 import net.craftgalaxy.minigameservice.packet.MinigamePacketPlayIn;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.UUID;
 
 public class PacketPlayInUpdatePlayerStatus implements MinigamePacketPlayIn, Serializable {
 
 	private static final long serialVersionUID = 6861876666511771712L;
-	private final UUID uniqueId;
+	private final Collection<UUID> players;
 	private final byte status;
 
-	public PacketPlayInUpdatePlayerStatus(UUID uniqueId, byte status) {
-		this.uniqueId = uniqueId;
+	public PacketPlayInUpdatePlayerStatus(Collection<UUID> players, byte status) {
+		this.players = players;
 		this.status = status;
 	}
 
-	public UUID getUniqueId() {
-		return this.uniqueId;
+	public Collection<UUID> getPlayers() {
+		return this.players;
 	}
 
 	public byte getStatus() {

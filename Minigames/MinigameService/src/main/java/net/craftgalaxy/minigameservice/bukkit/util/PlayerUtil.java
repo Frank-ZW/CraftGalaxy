@@ -13,7 +13,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 public class PlayerUtil {
 
@@ -27,8 +26,6 @@ public class PlayerUtil {
 				progress.revokeCriteria(criteria);
 			}
 		}
-
-		Bukkit.getLogger().info(ChatColor.GREEN + player.getName() + " had all their advancements cleared.");
 	}
 
 	public static void resetAttributes(@NotNull Player player) {
@@ -71,6 +68,8 @@ public class PlayerUtil {
 
 		player.setAllowFlight(true);
 		player.setFlying(true);
+		player.getInventory().setItem(0, ItemUtil.createSpectatorCompass());
+		player.getInventory().setItem(8, ItemUtil.createSpectatorQuit());
 	}
 
 	public static void unsetSpectator(@NotNull Player player) {

@@ -3,19 +3,19 @@ package net.craftgalaxy.minigameservice.packet.impl.server;
 import net.craftgalaxy.minigameservice.packet.MinigamePacketPlayIn;
 
 import java.io.Serializable;
-import java.util.Set;
+import java.util.Collection;
 import java.util.UUID;
 
-public class PacketPlayInEndConnection implements MinigamePacketPlayIn, Serializable {
+public class PacketPlayInEndMinigameConnect implements MinigamePacketPlayIn, Serializable {
 
 	private static final long serialVersionUID = -5964277011716251338L;
-	private final Set<UUID> players;
+	private final Collection<UUID> players;
 
-	public PacketPlayInEndConnection(Set<UUID> players) {
+	public PacketPlayInEndMinigameConnect(Collection<UUID> players) {
 		this.players = players;
 	}
 
-	public Set<UUID> getPlayers() {
+	public Collection<UUID> getPlayers() {
 		return this.players;
 	}
 }

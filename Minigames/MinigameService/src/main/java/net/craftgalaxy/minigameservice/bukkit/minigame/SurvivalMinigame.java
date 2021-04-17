@@ -1,7 +1,6 @@
 package net.craftgalaxy.minigameservice.bukkit.minigame;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.craftgalaxy.minigameservice.bukkit.BukkitService;
 import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
 import org.bukkit.*;
 import org.bukkit.advancement.Advancement;
@@ -10,6 +9,7 @@ import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.world.PortalCreateEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -19,9 +19,17 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 
 	protected Map<World.Environment, World> worlds = new Object2ObjectOpenHashMap<>();
 	protected Map<UUID, Set<Advancement>> advancements = new Object2ObjectOpenHashMap<>();
+	protected boolean netherAccess;
+	protected boolean endAccess;
 
 	public SurvivalMinigame(String name, int gameKey, Location lobby) {
+		this(name, gameKey, lobby, true, true);
+	}
+
+	public SurvivalMinigame(String name, int gameKey, Location lobby, boolean netherAccess, boolean endAccess) {
 		super(name, gameKey, lobby);
+		this.netherAccess = netherAccess;
+		this.endAccess = endAccess;
 	}
 
 	/**
@@ -43,7 +51,7 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	}
 
 	/**
-	 * Removes all awarded advancements during the minigame. This is much faster than
+	 * Removes all awarded advancements during the game. This is much faster than
 	 * looping through every available advancement and revoking each one individually.
 	 *
 	 * @param player    The player to revoke all advancements.
@@ -66,13 +74,8 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 			if (world.getPlayerCount() != 0) {
 				List<Player> players = world.getPlayers();
 				for (Player player : players) {
-					player.teleportAsync(this.lobby).thenAccept(result -> {
-						if (result) {
-							player.sendMessage(ChatColor.RED + "You were unexpectedly in the world " + world.getName() + " while it was being deleted. You have been teleported back to the lobby.");
-						} else {
-							player.sendMessage(ChatColor.RED + "Failed to teleport you back to the lobby spawn. Contact an administrator if this occurs.");
-						}
-					});
+					player.teleport(this.lobby);
+					player.sendMessage(ChatColor.RED + "You were unexpectedly in the world " + world.getName() + " while it was being deleted. You have been teleported back to the lobby.");
 				}
 			}
 
@@ -82,18 +85,14 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	}
 
 	@Override
-	protected boolean playerStartTeleport(@NotNull Player player, int radius, float angle) {
-		int x = (int) (this.getOverworld().getSpawnLocation().getX() + radius * Math.cos(Math.toRadians(angle)));
-		int z = (int) (this.getOverworld().getSpawnLocation().getZ() + radius * Math.sin(Math.toRadians(angle)));
-		int y = this.getOverworld().getHighestBlockYAt(x, z) + 1;
-		player.teleportAsync(new Location(this.getOverworld(), x, y, z)).thenAccept(result -> {
+	protected boolean playerStartTeleport(@NotNull Player player, Location to) {
+		player.teleportAsync(to).thenAccept(result -> {
 			if (result) {
 				player.sendMessage(this.startMessage(player.getUniqueId()));
 			} else {
 				player.sendMessage(ChatColor.RED + "Failed to teleport you to the " + this.getName() + " world. Contact an administrator if this occurs.");
 			}
 		});
-
 		return true;
 	}
 
@@ -129,7 +128,12 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 
 			PlayerUtil.clearAdvancements(player);
 			PlayerUtil.resetAttributes(player);
-			if (this.playerStartTeleport(player, radius, theta)) {
+
+			int x = (int) (this.getOverworld().getSpawnLocation().getX() + radius * Math.cos(Math.toRadians(theta)));
+			int z = (int) (this.getOverworld().getSpawnLocation().getZ() + radius * Math.sin(Math.toRadians(theta)));
+			int y = this.getOverworld().getHighestBlockYAt(x, z) + 1;
+			Location location = new Location(this.getOverworld(), x, y, z);
+			if (this.playerStartTeleport(player, location)) {
 				theta += delta;
 			}
 		}
@@ -159,6 +163,74 @@ public abstract class SurvivalMinigame extends AbstractMinigame {
 	public void cancelCountdown() {
 		super.cancelCountdown();
 		this.advancements.clear();
+	}
+
+	@Override
+	public void handlePlayerEvent(@NotNull Event event) {
+		if (event instanceof PlayerPortalEvent) {
+			PlayerPortalEvent e = (PlayerPortalEvent) event;
+			Player player = e.getPlayer();
+			World fromWorld = e.getFrom().getWorld();
+			if (e.getTo().getWorld() == null || e.getFrom().getWorld() == null || e.isCancelled()) {
+				return;
+			}
+
+			switch (e.getCause()) {
+				case NETHER_PORTAL:
+					switch (fromWorld.getEnvironment()) {
+						case NORMAL:
+							e.getTo().setWorld(this.getNether());
+							if (this.players.contains(player.getUniqueId()) && !this.spectators.contains(player.getUniqueId())) {
+								this.plugin.grantNetherAdvancement(player);
+							}
+
+							break;
+						case NETHER:
+							e.setTo(new Location(this.getOverworld(), e.getFrom().getX() * 8.0D, e.getFrom().getY(), e.getFrom().getZ() * 8.0D));
+							break;
+						default:
+					}
+
+					break;
+				case END_PORTAL:
+					switch (fromWorld.getEnvironment()) {
+						case NORMAL:
+							e.getTo().setWorld(this.getEnd());
+							if (this.players.contains(player.getUniqueId()) && !this.spectators.contains(player.getUniqueId())) {
+								this.plugin.grantEndAdvancement(player);
+							}
+
+							break;
+						case THE_END:
+							e.setTo(player.getBedSpawnLocation() == null ? this.getOverworld().getSpawnLocation() : player.getBedSpawnLocation());
+							break;
+						default:
+					}
+
+					break;
+				default:
+			}
+		} else if (event instanceof PortalCreateEvent) {
+			PortalCreateEvent e = (PortalCreateEvent) event;
+			switch (e.getReason()) {
+				case FIRE:
+				case NETHER_PAIR:
+					if (!this.netherAccess) {
+						e.setCancelled(true);
+					}
+
+					break;
+				default:
+					if (!this.endAccess) {
+						e.setCancelled(true);
+					}
+			}
+		}
+	}
+
+	@Override
+	public boolean worldsLoaded() {
+		return !this.worlds.isEmpty();
 	}
 
 	/**

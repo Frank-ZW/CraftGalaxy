@@ -1,20 +1,23 @@
 package net.craftgalaxy.minigameservice.bukkit.util;
 
 import com.google.common.collect.ImmutableSet;
+import net.minecraft.server.v1_16_R1.NBTTagCompound;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.craftbukkit.v1_16_R1.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.Set;
 
 public class ItemUtil {
 
+	public static final String SPECTATOR_GUI = ChatColor.BLUE + "Players";
+	public static final String LOCKOUT_PLAYER_TRACKER = ChatColor.GREEN + "Player Tracker";
 	public static final String LOCKOUT_BOARD = ChatColor.GREEN + "Click to view the available challenges";
-	public static final String PLAYER_TRACKER = ChatColor.RED + "Player Tracker";
+	public static final String MANHUNT_PLAYER_TRACKER = ChatColor.RED + "Player Tracker";
 	public static final String SPECTATOR_COMPASS = ChatColor.GREEN + "Spectator Compass";
 	public static final String SPECTATOR_QUIT = ChatColor.RED + "Leave the game";
 	private static final Set<Material> BED_ITEMS = ImmutableSet.of(
@@ -52,46 +55,38 @@ public class ItemUtil {
 			Material.MUSIC_DISC_WARD
 	);
 
-	public static ItemStack createLockoutBoard() {
-		ItemStack item = new ItemStack(Material.NETHER_STAR);
-		ItemMeta itemMeta = item.getItemMeta();
-		if (itemMeta != null) {
-			itemMeta.setDisplayName(ItemUtil.LOCKOUT_BOARD);
-			item.setItemMeta(itemMeta);
-		}
-
-		return item;
-	}
-
-	public static ItemStack createPlayerTracker() {
-		ItemStack item = new ItemStack(Material.COMPASS);
-		CompassMeta meta = (CompassMeta) item.getItemMeta();
-		if (meta != null) {
-			meta.setDisplayName(ItemUtil.PLAYER_TRACKER);
-			item.setItemMeta(meta);
-		}
-
-		return item;
-	}
-
-	public static ItemStack createSpectatorCompass() {
-		return ItemUtil.createItemStack(Material.COMPASS, ItemUtil.SPECTATOR_COMPASS);
-	}
-
-	public static ItemStack createSpectatorQuit() {
-		return ItemUtil.createItemStack(Material.RED_BED, ItemUtil.SPECTATOR_QUIT);
-	}
-
-	public static ItemStack createItemStack(Material material, String displayName, String ... lore) {
+	public static ItemStack createTaggedItem(Material material, @NotNull String name, String... tags) {
 		ItemStack item = new ItemStack(material);
 		ItemMeta meta = item.getItemMeta();
 		if (meta != null) {
-			meta.setDisplayName(displayName);
-			meta.setLore(Arrays.asList(lore));
+			meta.setDisplayName(name);
 			item.setItemMeta(meta);
 		}
 
-		return item;
+		net.minecraft.server.v1_16_R1.ItemStack nmsItem = CraftItemStack.asNMSCopy(item);
+		NBTTagCompound itemCompound = nmsItem.getOrCreateTag();
+		for (String tag : tags) {
+			itemCompound.setBoolean(tag, true);
+		}
+
+		nmsItem.setTag(itemCompound);
+		return CraftItemStack.asBukkitCopy(nmsItem);
+	}
+
+	public static ItemStack createLockoutBoard() {
+		return ItemUtil.createTaggedItem(Material.NETHER_STAR, ItemUtil.LOCKOUT_BOARD, "lockout_board");
+	}
+
+	public static ItemStack createPlayerTracker(@NotNull String name) {
+		return ItemUtil.createTaggedItem(Material.COMPASS, name, "player_tracker");
+	}
+
+	public static ItemStack createSpectatorCompass() {
+		return ItemUtil.createTaggedItem(Material.COMPASS, ItemUtil.SPECTATOR_COMPASS, "spectator_compass");
+	}
+
+	public static ItemStack createSpectatorQuit() {
+		return ItemUtil.createTaggedItem(Material.RED_BED, ItemUtil.SPECTATOR_QUIT, "spectator_quit");
 	}
 
 	public static boolean isMusicDiscType(Material material) {
