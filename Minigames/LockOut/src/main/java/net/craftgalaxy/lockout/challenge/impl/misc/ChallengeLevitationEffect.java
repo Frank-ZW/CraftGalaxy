@@ -13,7 +13,7 @@ public class ChallengeLevitationEffect extends EntityPotionEffectChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityPotionEffectEvent e) {
+	public boolean handle(EntityPotionEffectEvent e) {
 		if (e.getEntity() instanceof Player && e.getNewEffect() != null && e.getNewEffect().getType() == PotionEffectType.LEVITATION) {
 			this.lockOut.completeChallenge((Player) e.getEntity(), this);
 			return true;

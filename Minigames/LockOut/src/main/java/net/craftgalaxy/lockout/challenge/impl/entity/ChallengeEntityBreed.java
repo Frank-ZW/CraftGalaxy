@@ -13,7 +13,7 @@ public abstract class ChallengeEntityBreed extends EntityBreedChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityBreedEvent e) {
+	public boolean handle(EntityBreedEvent e) {
 		if (e.getBreeder() instanceof Player && e.getEntityType() == this.getEntityType()) {
 			this.lockOut.completeChallenge((Player) e.getBreeder(), this);
 			return true;

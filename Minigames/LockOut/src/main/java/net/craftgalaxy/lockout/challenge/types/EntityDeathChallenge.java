@@ -7,6 +7,6 @@ import org.bukkit.event.entity.EntityDeathEvent;
 public abstract class EntityDeathChallenge extends AbstractChallenge<EntityDeathEvent> {
 
 	public EntityDeathChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, EntityDeathEvent.class);
 	}
 }

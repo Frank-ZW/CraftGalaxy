@@ -13,7 +13,7 @@ public class ChallengeWearTurtleShell extends PlayerArmorChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerArmorChangeEvent e) {
+	public boolean handle(PlayerArmorChangeEvent e) {
 		ItemStack item = e.getNewItem();
 		if (item != null && item.getType() == Material.TURTLE_HELMET) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);

@@ -7,6 +7,6 @@ import org.bukkit.event.entity.EntityPotionEffectEvent;
 public abstract class EntityPotionEffectChallenge extends AbstractChallenge<EntityPotionEffectEvent> {
 
 	public EntityPotionEffectChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, EntityPotionEffectEvent.class);
 	}
 }

@@ -12,7 +12,7 @@ public class ChallengeShearSheep extends PlayerShearChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerShearEntityEvent e) {
+	public boolean handle(PlayerShearEntityEvent e) {
 		if (e.getEntity() instanceof Sheep) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

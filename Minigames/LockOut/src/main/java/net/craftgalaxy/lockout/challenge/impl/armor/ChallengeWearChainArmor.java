@@ -14,7 +14,7 @@ public class ChallengeWearChainArmor extends PlayerArmorChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerArmorChangeEvent e) {
+	public boolean handle(PlayerArmorChangeEvent e) {
 		ItemStack item = e.getNewItem();
 		if (item != null && ItemUtil.isChainmailArmorType(item.getType()) && PlayerUtil.isWearingChainmailArmor(e.getPlayer())) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);

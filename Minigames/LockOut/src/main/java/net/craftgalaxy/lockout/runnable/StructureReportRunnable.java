@@ -23,7 +23,7 @@ public class StructureReportRunnable extends BukkitRunnable {
 				continue;
 			}
 
-			if (this.lockOut.checkStructureChallenges(player)) {
+			if (this.lockOut.handleStructureChallenge(player)) {
 				this.cancel();
 			}
 		}

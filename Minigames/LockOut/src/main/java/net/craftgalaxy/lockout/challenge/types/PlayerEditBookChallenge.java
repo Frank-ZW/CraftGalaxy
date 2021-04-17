@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerEditBookEvent;
 public abstract class PlayerEditBookChallenge extends AbstractChallenge<PlayerEditBookEvent> {
 
 	public PlayerEditBookChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerEditBookEvent.class);
 	}
 }

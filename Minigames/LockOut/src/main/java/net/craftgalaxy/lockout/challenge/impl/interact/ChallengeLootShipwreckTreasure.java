@@ -15,7 +15,7 @@ public class ChallengeLootShipwreckTreasure extends PlayerInteractChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerInteractEvent e) {
+	public boolean handle(PlayerInteractEvent e) {
 		if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
 			Block block = e.getClickedBlock();
 			if (block != null && block.getState() instanceof Chest) {

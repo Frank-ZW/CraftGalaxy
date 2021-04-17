@@ -7,6 +7,6 @@ import org.bukkit.event.entity.EntityTameEvent;
 public abstract class EntityTameChallenge extends AbstractChallenge<EntityTameEvent> {
 
 	public EntityTameChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, EntityTameEvent.class);
 	}
 }

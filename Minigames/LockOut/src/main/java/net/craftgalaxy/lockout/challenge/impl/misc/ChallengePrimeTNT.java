@@ -12,7 +12,7 @@ public class ChallengePrimeTNT extends TNTPrimeChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(TNTPrimeEvent e) {
+	public boolean handle(TNTPrimeEvent e) {
 		if (e.getPrimerEntity() instanceof Player) {
 			this.lockOut.completeChallenge((Player) e.getPrimerEntity(), this);
 			return true;

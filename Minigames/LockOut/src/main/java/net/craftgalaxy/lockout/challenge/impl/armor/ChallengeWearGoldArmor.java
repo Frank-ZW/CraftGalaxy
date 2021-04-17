@@ -14,7 +14,7 @@ public class ChallengeWearGoldArmor extends PlayerArmorChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerArmorChangeEvent e) {
+	public boolean handle(PlayerArmorChangeEvent e) {
 		ItemStack item = e.getNewItem();
 		if (item != null && ItemUtil.isGoldenArmorType(item.getType()) && PlayerUtil.isWearingGoldenArmor(e.getPlayer())) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);

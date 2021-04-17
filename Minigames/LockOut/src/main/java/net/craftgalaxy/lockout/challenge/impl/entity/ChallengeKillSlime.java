@@ -13,7 +13,7 @@ public class ChallengeKillSlime extends EntityDeathChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityDeathEvent e) {
+	public boolean handle(EntityDeathEvent e) {
 		if (e.getEntity() instanceof Slime) {
 			Player killer = e.getEntity().getKiller();
 			if (killer != null) {

@@ -7,6 +7,6 @@ import net.craftgalaxy.lockout.minigame.LockOut;
 public abstract class PlayerArmorChallenge extends AbstractChallenge<PlayerArmorChangeEvent> {
 
 	public PlayerArmorChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerArmorChangeEvent.class);
 	}
 }

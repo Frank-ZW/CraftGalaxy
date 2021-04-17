@@ -11,7 +11,7 @@ public class ChallengeSignBook extends PlayerEditBookChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerEditBookEvent e) {
+	public boolean handle(PlayerEditBookEvent e) {
 		if (e.isSigning()) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

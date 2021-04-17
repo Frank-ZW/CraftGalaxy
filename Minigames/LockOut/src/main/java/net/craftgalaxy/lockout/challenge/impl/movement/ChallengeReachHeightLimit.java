@@ -12,7 +12,7 @@ public class ChallengeReachHeightLimit extends PlayerMovementChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerMoveEvent e) {
+	public boolean handle(PlayerMoveEvent e) {
 		Player player = e.getPlayer();
 		if (e.getTo().getBlockY() >= player.getWorld().getMaxHeight()) {
 			this.lockOut.completeChallenge(player, this);

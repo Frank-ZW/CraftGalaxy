@@ -7,6 +7,6 @@ import net.craftgalaxy.lockout.minigame.LockOut;
 public abstract class TNTPrimeChallenge extends AbstractChallenge<TNTPrimeEvent> {
 
 	public TNTPrimeChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, TNTPrimeEvent.class);
 	}
 }

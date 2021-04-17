@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerShearEntityEvent;
 public abstract class PlayerShearChallenge extends AbstractChallenge<PlayerShearEntityEvent> {
 
 	public PlayerShearChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerShearEntityEvent.class);
 	}
 }

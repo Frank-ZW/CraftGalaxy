@@ -17,7 +17,7 @@ public class ChallengeBrewHealingPotion extends PlayerInventoryClickChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(InventoryClickEvent e) {
+	public boolean handle(InventoryClickEvent e) {
 		ItemStack item = e.getCurrentItem();
 		if (e.getInventory().getType() == InventoryType.BREWING && e.getRawSlot() >= 0 && e.getRawSlot() <= 2 && item != null && (item.getType() == Material.POTION || item.getType() == Material.SPLASH_POTION || item.getType() == Material.LINGERING_POTION)) {
 			PotionMeta potionMeta = (PotionMeta) item.getItemMeta();

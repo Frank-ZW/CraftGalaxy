@@ -12,7 +12,7 @@ public class ChallengeConsumeSuspiciousStew extends PlayerConsumeChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerItemConsumeEvent e) {
+	public boolean handle(PlayerItemConsumeEvent e) {
 		if (e.getItem().getType() == Material.SUSPICIOUS_STEW) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

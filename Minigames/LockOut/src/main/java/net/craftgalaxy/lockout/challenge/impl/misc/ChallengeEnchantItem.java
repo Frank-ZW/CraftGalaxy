@@ -11,7 +11,7 @@ public class ChallengeEnchantItem extends ItemEnchantChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EnchantItemEvent e) {
+	public boolean handle(EnchantItemEvent e) {
 		this.lockOut.completeChallenge(e.getEnchanter(), this);
 		return true;
 	}

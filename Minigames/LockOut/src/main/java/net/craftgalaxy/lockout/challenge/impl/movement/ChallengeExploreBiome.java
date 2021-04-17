@@ -12,7 +12,7 @@ public abstract class ChallengeExploreBiome extends PlayerMovementChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerMoveEvent e) {
+	public boolean handle(PlayerMoveEvent e) {
 		if (this.isTargetBiome(e.getTo().getBlock().getBiome())) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

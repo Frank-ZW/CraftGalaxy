@@ -14,7 +14,7 @@ public class ChallengeUseNametag extends PlayerEntityInteractChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerInteractEntityEvent e) {
+	public boolean handle(PlayerInteractEntityEvent e) {
 		Player player = e.getPlayer();
 		ItemStack item = player.getInventory().getItemInMainHand();
 		if (item.getType().isAir()) {

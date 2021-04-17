@@ -13,7 +13,7 @@ public class ChallengeReachBedrock extends PlayerMovementChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerMoveEvent e) {
+	public boolean handle(PlayerMoveEvent e) {
 		if (e.getTo().getBlockY() < 6) {
 			Block block = e.getTo().clone().subtract(0.0D, 1.0D, 0.0D).getBlock();
 			if (block.getType() == Material.BEDROCK) {

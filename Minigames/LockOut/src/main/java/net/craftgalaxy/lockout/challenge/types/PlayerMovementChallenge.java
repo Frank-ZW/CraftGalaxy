@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerMoveEvent;
 public abstract class PlayerMovementChallenge extends AbstractChallenge<PlayerMoveEvent> {
 
 	public PlayerMovementChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerMoveEvent.class);
 	}
 }

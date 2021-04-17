@@ -7,11 +7,11 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 public abstract class PlayerAdvancementChallenge extends AbstractChallenge<PlayerAdvancementDoneEvent> {
 
 	public PlayerAdvancementChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerAdvancementDoneEvent.class);
 	}
 
 	@Override
-	public boolean handleEvent(PlayerAdvancementDoneEvent e) {
+	public boolean handle(PlayerAdvancementDoneEvent e) {
 		if (e.getAdvancement().getKey().getKey().equals(this.getNamespaceKey())) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

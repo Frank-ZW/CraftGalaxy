@@ -8,19 +8,19 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.loot.LootTables;
 
-public class ChallengeLootBuriedTreasure extends PlayerInteractChallenge {
+public class ChallengeLootDungeonTreasure extends PlayerInteractChallenge {
 
-	public ChallengeLootBuriedTreasure(LockOut lockOut) {
+	public ChallengeLootDungeonTreasure(LockOut lockOut) {
 		super(lockOut);
 	}
 
 	@Override
 	public boolean handle(PlayerInteractEvent e) {
 		if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
-			Block block = e.getClickedBlock();
-			if (block != null && block.getState() instanceof Chest) {
-				Chest chest = (Chest) block.getState();
-				if (LootTables.BURIED_TREASURE.getLootTable().equals(chest.getLootTable())) {
+			Block clicked = e.getClickedBlock();
+			if (clicked != null && clicked.getState() instanceof Chest) {
+				Chest chest = (Chest) clicked.getState();
+				if (LootTables.SIMPLE_DUNGEON.getLootTable().equals(chest.getLootTable())) {
 					this.lockOut.completeChallenge(e.getPlayer(), this);
 					return true;
 				}
@@ -32,6 +32,6 @@ public class ChallengeLootBuriedTreasure extends PlayerInteractChallenge {
 
 	@Override
 	public String getDisplayMessage() {
-		return "Loot a buried treasure chest!";
+		return "Loot a dungeon chest!";
 	}
 }

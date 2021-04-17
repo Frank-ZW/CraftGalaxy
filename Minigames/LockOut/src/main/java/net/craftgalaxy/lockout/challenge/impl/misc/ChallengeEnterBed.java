@@ -11,7 +11,7 @@ public class ChallengeEnterBed extends PlayerBedEnterChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerBedEnterEvent e) {
+	public boolean handle(PlayerBedEnterEvent e) {
 		if (e.getBedEnterResult() == PlayerBedEnterEvent.BedEnterResult.OK) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

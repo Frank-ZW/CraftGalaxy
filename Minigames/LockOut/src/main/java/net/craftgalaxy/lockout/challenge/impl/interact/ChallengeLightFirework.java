@@ -14,7 +14,7 @@ public class ChallengeLightFirework extends PlayerInteractChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerInteractEvent e) {
+	public boolean handle(PlayerInteractEvent e) {
 		if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
 			ItemStack item = e.getItem();
 			if (item != null && item.getType() == Material.FIREWORK_ROCKET) {

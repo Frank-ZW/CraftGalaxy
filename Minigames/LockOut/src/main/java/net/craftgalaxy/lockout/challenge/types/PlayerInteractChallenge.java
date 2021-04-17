@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 public abstract class PlayerInteractChallenge extends AbstractChallenge<PlayerInteractEvent> {
 
 	public PlayerInteractChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerInteractEvent.class);
 	}
 }

@@ -12,7 +12,7 @@ public class ChallengeWitherDamage extends EntityDamageChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityDamageEvent e) {
+	public boolean handle(EntityDamageEvent e) {
 		if (e.getEntity() instanceof Player && e.getCause() == EntityDamageEvent.DamageCause.WITHER) {
 			this.lockOut.completeChallenge((Player) e.getEntity(), this);
 		}

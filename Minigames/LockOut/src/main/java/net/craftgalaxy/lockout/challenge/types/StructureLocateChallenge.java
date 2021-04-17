@@ -13,13 +13,13 @@ public abstract class StructureLocateChallenge extends AbstractChallenge<Player>
 	private final StructureGenerator<?> structureGenerator;
 
 	public StructureLocateChallenge(LockOut lockOut, StructureType structureType, StructureGenerator<?> structureGenerator) {
-		super(lockOut);
+		super(lockOut, Player.class);
 		this.structureType = structureType;
 		this.structureGenerator = structureGenerator;
 	}
 
 	@Override
-	public boolean handleEvent(Player player) {
+	public boolean handle(Player player) {
 		if (PlayerUtil.isInsideStructure(player, this.structureType, this.structureGenerator)) {
 			this.lockOut.completeChallenge(player, this);
 			return true;

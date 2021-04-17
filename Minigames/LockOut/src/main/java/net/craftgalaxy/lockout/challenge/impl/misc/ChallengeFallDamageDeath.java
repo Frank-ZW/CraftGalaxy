@@ -12,7 +12,7 @@ public class ChallengeFallDamageDeath extends EntityDamageChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityDamageEvent e) {
+	public boolean handle(EntityDamageEvent e) {
 		if (!(e.getEntity() instanceof Player)) {
 			return false;
 		}

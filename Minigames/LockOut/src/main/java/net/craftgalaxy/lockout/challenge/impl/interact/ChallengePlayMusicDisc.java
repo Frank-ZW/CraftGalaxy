@@ -16,7 +16,7 @@ public class ChallengePlayMusicDisc extends PlayerInteractChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerInteractEvent e) {
+	public boolean handle(PlayerInteractEvent e) {
 		if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
 			Block block = e.getClickedBlock();
 			ItemStack item = e.getItem();

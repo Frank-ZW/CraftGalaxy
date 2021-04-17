@@ -2,22 +2,23 @@ package net.craftgalaxy.lockout.challenge.impl.inventory;
 
 import net.craftgalaxy.lockout.challenge.types.PlayerInventoryClickChallenge;
 import net.craftgalaxy.lockout.minigame.LockOut;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 
-public class ChallengeCraftEnderChest extends PlayerInventoryClickChallenge {
+public class ChallengeCraftDispenser extends PlayerInventoryClickChallenge {
 
-	public ChallengeCraftEnderChest(LockOut lockOut) {
+	public ChallengeCraftDispenser(LockOut lockOut) {
 		super(lockOut);
 	}
 
 	@Override
 	public boolean handle(InventoryClickEvent e) {
 		ItemStack item = e.getCurrentItem();
-		if (e.getInventory().getType() == InventoryType.WORKBENCH && e.getRawSlot() == 0 && item != null && item.getType() == Material.ENDER_CHEST) {
+		if (e.getInventory().getType() == InventoryType.WORKBENCH && e.getRawSlot() == 0 && item != null && item.getType() == Material.DISPENSER) {
 			this.lockOut.completeChallenge((Player) e.getWhoClicked(), this);
 			return true;
 		}
@@ -27,6 +28,6 @@ public class ChallengeCraftEnderChest extends PlayerInventoryClickChallenge {
 
 	@Override
 	public String getDisplayMessage() {
-		return "Craft an Ender Chest!";
+		return ChatColor.GREEN + "Craft a dispenser!";
 	}
 }

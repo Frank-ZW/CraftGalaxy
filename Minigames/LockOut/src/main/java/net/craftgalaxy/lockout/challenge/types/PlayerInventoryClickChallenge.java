@@ -7,6 +7,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 public abstract class PlayerInventoryClickChallenge extends AbstractChallenge<InventoryClickEvent> {
 
 	public PlayerInventoryClickChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, InventoryClickEvent.class);
 	}
 }

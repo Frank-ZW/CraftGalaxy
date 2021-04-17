@@ -11,12 +11,12 @@ public abstract class EntityMountChallenge extends AbstractChallenge<EntityMount
 	private final EntityType entity;
 
 	public EntityMountChallenge(LockOut lockOut, EntityType entity) {
-		super(lockOut);
+		super(lockOut, EntityMountEvent.class);
 		this.entity = entity;
 	}
 
 	@Override
-	public boolean handleEvent(EntityMountEvent e) {
+	public boolean handle(EntityMountEvent e) {
 		if (e.getMount().getType() == this.entity && e.getEntity() instanceof Player) {
 			this.lockOut.completeChallenge((Player) e.getEntity(), this);
 			return true;

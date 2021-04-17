@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerBedEnterEvent;
 public abstract class PlayerBedEnterChallenge extends AbstractChallenge<PlayerBedEnterEvent> {
 
 	public PlayerBedEnterChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerBedEnterEvent.class);
 	}
 }

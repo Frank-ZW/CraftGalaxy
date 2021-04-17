@@ -7,6 +7,6 @@ import org.bukkit.event.entity.EntityDamageEvent;
 public abstract class EntityDamageChallenge extends AbstractChallenge<EntityDamageEvent> {
 
 	public EntityDamageChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, EntityDamageEvent.class);
 	}
 }

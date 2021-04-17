@@ -14,7 +14,7 @@ public class ChallengeRepairItem extends PlayerInventoryClickChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(InventoryClickEvent e) {
+	public boolean handle(InventoryClickEvent e) {
 		if (e.getInventory().getType() == InventoryType.ANVIL && e.getRawSlot() == 2) {
 			Inventory anvil = e.getInventory();
 			if (anvil.getItem(0) != null && anvil.getItem(1) != null) {

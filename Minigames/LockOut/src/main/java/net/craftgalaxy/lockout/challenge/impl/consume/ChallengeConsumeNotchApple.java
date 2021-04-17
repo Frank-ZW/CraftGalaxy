@@ -12,7 +12,7 @@ public class ChallengeConsumeNotchApple extends PlayerConsumeChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(PlayerItemConsumeEvent e) {
+	public boolean handle(PlayerItemConsumeEvent e) {
 		if (e.getItem().getType() == Material.ENCHANTED_GOLDEN_APPLE) {
 			this.lockOut.completeChallenge(e.getPlayer(), this);
 			return true;

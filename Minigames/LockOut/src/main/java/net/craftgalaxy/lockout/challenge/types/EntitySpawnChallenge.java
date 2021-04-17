@@ -7,6 +7,6 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 public abstract class EntitySpawnChallenge extends AbstractChallenge<CreatureSpawnEvent> {
 
 	public EntitySpawnChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, CreatureSpawnEvent.class);
 	}
 }

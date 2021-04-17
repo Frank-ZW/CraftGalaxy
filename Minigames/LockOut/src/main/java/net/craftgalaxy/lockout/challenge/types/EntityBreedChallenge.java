@@ -7,6 +7,6 @@ import org.bukkit.event.entity.EntityBreedEvent;
 public abstract class EntityBreedChallenge extends AbstractChallenge<EntityBreedEvent> {
 
 	public EntityBreedChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, EntityBreedEvent.class);
 	}
 }

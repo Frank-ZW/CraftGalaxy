@@ -7,6 +7,6 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 public abstract class PlayerConsumeChallenge extends AbstractChallenge<PlayerItemConsumeEvent> {
 
 	public PlayerConsumeChallenge(LockOut lockOut) {
-		super(lockOut);
+		super(lockOut, PlayerItemConsumeEvent.class);
 	}
 }

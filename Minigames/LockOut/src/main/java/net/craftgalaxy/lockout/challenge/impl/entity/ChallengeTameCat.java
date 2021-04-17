@@ -13,7 +13,7 @@ public class ChallengeTameCat extends EntityTameChallenge {
 	}
 
 	@Override
-	public boolean handleEvent(EntityTameEvent e) {
+	public boolean handle(EntityTameEvent e) {
 		if (e.getEntity() instanceof Cat && e.getOwner() instanceof Player) {
 			this.lockOut.completeChallenge((Player) e.getOwner(), this);
 			return true;
