@@ -6,12 +6,12 @@ import java.io.Serializable;
 import java.util.Set;
 import java.util.UUID;
 
-public class PacketPlayInEndTeleport implements MinigamePacketPlayIn, Serializable {
+public class PacketPlayInEndConnection implements MinigamePacketPlayIn, Serializable {
 
 	private static final long serialVersionUID = -5964277011716251338L;
 	private final Set<UUID> players;
 
-	public PacketPlayInEndTeleport(Set<UUID> players) {
+	public PacketPlayInEndConnection(Set<UUID> players) {
 		this.players = players;
 	}
 
