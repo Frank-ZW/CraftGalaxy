@@ -17,6 +17,7 @@
     </option>
     <option name="ignoredFiles">
       <set>
+        <option value="$PROJECT_DIR$/Minigames/Assassin/pom.xml" />
         <option value="$PROJECT_DIR$/Minigames/ZombieApocalypse/pom.xml" />
       </set>
     </option>

@@ -7,20 +7,21 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="MinigameService" />
-        <module name="DeathSwap" />
         <module name="GalaxyBungee" />
-        <module name="Mavic" />
-        <module name="GalaxyBukkit" />
         <module name="Manhunt" />
         <module name="MinigameCore" />
         <module name="BungeeCore" />
         <module name="LockOut" />
         <module name="CorePackets" />
-        <module name="AsyncWilderness" />
         <module name="LobbyCore" />
+        <module name="DeathSwap" />
+        <module name="Mavic" />
+        <module name="GalaxyBukkit" />
+        <module name="AsyncWilderness" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="Assassin" target="11" />
       <module name="AsyncWilderness" target="11" />
       <module name="BungeeCore" target="11" />
       <module name="CorePackets" target="11" />
