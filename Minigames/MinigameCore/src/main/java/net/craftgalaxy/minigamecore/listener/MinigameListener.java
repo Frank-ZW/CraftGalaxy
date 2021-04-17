@@ -10,11 +10,11 @@ public final class MinigameListener implements Listener {
 
 	@EventHandler
 	public void onMinigameStart(MinigameStartEvent e) {
-		MinigameManager.getInstance().handleEvent(e);
+		MinigameManager.getInstance().handleEvent(e, null);
 	}
 
 	@EventHandler
 	public void onMinigameEnd(MinigameEndEvent e) {
-		MinigameManager.getInstance().handleEvent(e);
+		MinigameManager.getInstance().handleEvent(e, null);
 	}
 }

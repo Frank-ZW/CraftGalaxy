@@ -3,7 +3,8 @@ package net.craftgalaxy.minigamecore.minigame;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.craftgalaxy.deathswap.minigame.DeathSwap;
 import net.craftgalaxy.lockout.minigame.LockOut;
-import net.craftgalaxy.manhunt.minigame.Manhunt;
+import net.craftgalaxy.manhunt.minigame.impl.SurvivalManhunt;
+import net.craftgalaxy.manhunt.minigame.impl.VanillaManhunt;
 import net.craftgalaxy.minigamecore.MinigameCore;
 import net.craftgalaxy.minigamecore.runnable.SocketConnectionRunnable;
 import net.craftgalaxy.minigamecore.socket.MinigameSocket;
@@ -11,11 +12,9 @@ import net.craftgalaxy.minigameservice.bukkit.event.MinigameEndEvent;
 import net.craftgalaxy.minigameservice.bukkit.event.MinigameEvent;
 import net.craftgalaxy.minigameservice.bukkit.event.MinigameStartEvent;
 import net.craftgalaxy.minigameservice.bukkit.minigame.AbstractMinigame;
+import net.craftgalaxy.minigameservice.bukkit.util.PlayerUtil;
 import net.craftgalaxy.minigameservice.bukkit.util.java.StringUtil;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutCreateMinigame;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutForceEnd;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutPromptDisconnect;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutQueuePlayer;
+import net.craftgalaxy.minigameservice.packet.impl.client.*;
 import net.craftgalaxy.minigameservice.packet.impl.server.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -38,6 +37,7 @@ public class MinigameManager {
 	private final MinigameCore plugin;
 	private Map<UUID, BukkitTask> disconnections = new HashMap<>();
 	private Set<UUID> queuedPlayers = new HashSet<>();
+	private Map<UUID, UUID> queuedSpectators = new HashMap<>();
 	private ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("MinigameCore Socket Thread").build());
 	private BukkitTask scheduledForceEnd;
 	private int maxPlayers;
@@ -48,7 +48,6 @@ public class MinigameManager {
 
 	public MinigameManager(MinigameCore plugin) {
 		this.plugin = plugin;
-
 		BukkitRunnable socketScheduler = new SocketConnectionRunnable(this);
 		socketScheduler.runTaskTimer(plugin, 0, 200);
 	}
@@ -91,6 +90,7 @@ public class MinigameManager {
 		}
 
 		instance.queuedPlayers.clear();
+		instance.queuedSpectators.clear();
 		instance.disconnections.clear();
 		instance.executor.shutdownNow();
 		try {
@@ -103,6 +103,7 @@ public class MinigameManager {
 			instance.maxPlayers = 0;
 			instance.disconnections = null;
 			instance.queuedPlayers = null;
+			instance.queuedSpectators = null;
 			instance.executor = null;
 			instance.scheduledForceEnd = null;
 			instance.socket = null;
@@ -140,7 +141,7 @@ public class MinigameManager {
 			this.maxPlayers = packet.getMaxPlayers();
 			switch (packet.getMinigameId()) {
 				case 0:
-					this.minigame = new Manhunt(packet.getGameKey(), this.plugin.getLobbyLocation());
+					this.minigame = new VanillaManhunt(packet.getGameKey(), this.plugin.getLobbyLocation());
 					break;
 				case 1:
 					this.minigame = new DeathSwap(packet.getGameKey(), this.plugin.getLobbyLocation());
@@ -148,32 +149,29 @@ public class MinigameManager {
 				case 2:
 					this.minigame = new LockOut(packet.getGameKey(), this.plugin.getLobbyLocation());
 					break;
+				case 3:
+					this.minigame = new SurvivalManhunt(packet.getGameKey(), this.plugin.getLobbyLocation());
+					break;
 				default:
-					Bukkit.getLogger().warning("Received a request to create a new minigame with an id of " + packet.getMinigameId() + ". This id does not exist and has been ignored.");
-					return;
+					Bukkit.getLogger().warning("Received a request to create a new mini-game with an id of " + packet.getMinigameId() + ". This id does not exist and has been ignored.");
 			}
-
-			Bukkit.getScheduler().runTask(this.plugin, () -> {
-				if (!this.minigame.createWorlds()) {
-					Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while loading up the worlds for " + (this.minigame == null ? "Unknown" : this.minigame.getName()) + ". You have been teleported back to the lobby.");
-					try {
-						this.socket.sendPacket(new PacketPlayInPlayerConnect(this.queuedPlayers));
-						this.socket.sendPacket(new PacketPlayInServerQueue(true));
-						this.minigame.deleteWorlds();
-					} catch (IOException e) {
-						e.printStackTrace();
-					} finally {
-						this.queuedPlayers.clear();
-					}
-				}
-			});
 		} else if (object instanceof PacketPlayOutQueuePlayer) {
 			PacketPlayOutQueuePlayer packet = (PacketPlayOutQueuePlayer) object;
 			this.queuedPlayers.add(packet.getUniqueId());
 		} else if (object instanceof PacketPlayOutForceEnd) {
 			Bukkit.getScheduler().runTask(this.plugin, this::handleForceEnd);
 		} else if (object instanceof PacketPlayOutPromptDisconnect) {
-			Bukkit.getScheduler().runTask(this.plugin, () -> Bukkit.getServer().shutdown());
+			PacketPlayOutPromptDisconnect packet = (PacketPlayOutPromptDisconnect) object;
+			Bukkit.getScheduler().runTask(this.plugin, () -> {
+				if (packet.isShutdown()) {
+					Bukkit.getServer().shutdown();
+				} else {
+					Bukkit.getPluginManager().disablePlugin(this.plugin);
+				}
+			});
+		} else if (object instanceof PacketPlayOutQueueSpectator) {
+			PacketPlayOutQueueSpectator packet = (PacketPlayOutQueueSpectator) object;
+			this.queuedSpectators.put(packet.getSpectator(), packet.getPlayer());
 		}
 	}
 
@@ -196,7 +194,7 @@ public class MinigameManager {
 			}
 
 			try {
-				this.socket.sendPacket(new PacketPlayInEndTeleport(this.queuedPlayers));
+				this.socket.sendPacket(new PacketPlayInEndMinigameConnect(this.queuedPlayers));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -204,15 +202,19 @@ public class MinigameManager {
 	}
 
 	public void handleConnect(@NotNull Player player) throws IOException {
+		if (player.isDead()) {
+			player.spigot().respawn();
+		}
+
 		if (this.minigame == null) {
-			if (!player.hasPermission(StringUtil.BACKEND_SERVER_PERMISSION)) {
+			if (!player.hasPermission(StringUtil.BACKEND_SERVER_PERMISSION + MinigameCore.BUNGEE_SERVER_NAME)) {
 				this.sendBungeeLobby(player);
 			}
 
 			return;
 		}
 
-		if (this.minigame.isCountingDown() || this.minigame.isFinished()) {
+		if (this.minigame.isCountingDown()) {
 			return;
 		}
 
@@ -230,9 +232,22 @@ public class MinigameManager {
 
 				if (this.queuedPlayers.size() >= this.maxPlayers) {
 					try {
-						this.socket.sendPacket(new PacketPlayInStartCountdown(this.queuedPlayers, this.minigame.getGameKey()));
-						this.minigame.startCountdown(new ArrayList<>(this.queuedPlayers));
-						this.queuedPlayers.clear();
+						if (!this.minigame.createWorlds()) {
+							Bukkit.broadcastMessage(ChatColor.RED + "An error occurred while loading up the worlds for " + (this.minigame == null ? "Unknown" : this.minigame.getName()) + ". You have been teleported back to the lobby.");
+							try {
+								this.socket.sendPacket(new PacketPlayInPlayerConnect(this.queuedPlayers));
+								this.socket.sendPacket(new PacketPlayInServerQueue(true));
+								this.minigame.deleteWorlds();
+							} catch (IOException e) {
+								e.printStackTrace();
+							} finally {
+								this.queuedPlayers.clear();
+							}
+						} else {
+							this.socket.sendPacket(new PacketPlayInStartCountdown(this.queuedPlayers, this.minigame.getGameKey()));
+							this.minigame.startCountdown(new ArrayList<>(this.queuedPlayers));
+							this.queuedPlayers.clear();
+						}
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -243,13 +258,34 @@ public class MinigameManager {
 				}
 			}
 		} else {
+			UUID spectatedUuid = this.queuedSpectators.remove(player.getUniqueId());
+			if (spectatedUuid != null) {
+				Player spectated = Bukkit.getPlayer(spectatedUuid);
+				if (spectated == null) {
+					this.sendBungeeLobby(player);
+					return;
+				}
+
+				player.teleportAsync(spectated.getLocation()).thenAccept(result -> {
+					if (result) {
+						this.minigame.hideSpectator(player);
+						PlayerUtil.setSpectator(player);
+						player.sendMessage(ChatColor.RED + "You are now spectating " + spectated.getName());
+					} else {
+						player.sendMessage(ChatColor.RED + "Failed to teleport you to " + spectated.getName() + ". Contact an administrator if this occurs.");
+					}
+				});
+			}
+
 			BukkitTask task = this.disconnections.remove(player.getUniqueId());
 			if (task == null) {
-				this.sendBungeeLobby(player);
+				if (!player.hasPermission(StringUtil.BACKEND_SERVER_PERMISSION)) {
+					this.sendBungeeLobby(player);
+				}
 			} else {
 				task.cancel();
 				if (!this.minigame.isSpectator(player.getUniqueId())) {
-					this.minigame.connectMessage(player);
+					Bukkit.broadcastMessage(this.minigame.getFormattedDisplayName(player) + ChatColor.GRAY + " reconnected.");
 				}
 			}
 		}
@@ -294,27 +330,28 @@ public class MinigameManager {
 				this.socket.sendPacket(new PacketPlayInPlayerLeave(player.getUniqueId()));
 				this.socket.sendPacket(new PacketPlayInUpdatePlayerCount(this.minigame.getNumPlayers(), this.maxPlayers));
 			} else {
-				this.minigame.disconnectMessage(player);
+				Bukkit.broadcastMessage(this.minigame.getFormattedDisplayName(player) + ChatColor.GRAY + " disconnected.");
 				this.disconnections.put(player.getUniqueId(), Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
 					this.disconnections.remove(player.getUniqueId());
-					this.minigame.removePlayer(player);
 					try {
 						this.socket.sendPacket(new PacketPlayInDisconnectRemove(player.getUniqueId()));
-						this.socket.sendPacket(new PacketPlayInUpdatePlayerCount(this.minigame.getNumPlayers(), this.maxPlayers));
+						this.socket.sendPacket(new PacketPlayInUpdatePlayerCount(this.minigame.getNumPlayers() - 1, this.maxPlayers));
 					} catch (IOException e) {
 						e.printStackTrace();
+					} finally {
+						this.minigame.removePlayer(player);
 					}
 				}, TimeUnit.MINUTES.toSeconds(3) * 20));
 			}
 		}
 	}
 
-	public void handleEvent(@NotNull Event e) {
+	public void handleEvent(@NotNull Event e, @Nullable UUID uniqueId) {
 		if (e instanceof MinigameEvent) {
 			if (e instanceof MinigameStartEvent) {
 				MinigameStartEvent event = (MinigameStartEvent) e;
 				try {
-					this.socket.sendPacket(new PacketPlayInStartTeleport(event.getPlayers()));
+					this.socket.sendPacket(new PacketPlayInUpdatePlayerStatus(event.getPlayers(), (byte) 0));
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				} finally {
@@ -325,30 +362,29 @@ public class MinigameManager {
 								Bukkit.broadcastMessage(ChatColor.GREEN + "The " + this.minigame.getName() + " you were in was automatically ended because it exceeded the maximum time limit.");
 								this.minigame.endMinigame(false);
 							}
-						}, timestamp);
+						}, 20 * timestamp);
 					}
 				}
 			} else {
 				MinigameEndEvent event = (MinigameEndEvent) e;
+				Bukkit.getLogger().info(ChatColor.RED + "Ending minigame for " + event.getMinigame().getName() + " with game key " + event.getGameKey());
 				try {
-					this.socket.sendPacket(new PacketPlayInEndTeleport(event.getPlayers()));
+					this.socket.sendPacket(new PacketPlayInEndMinigameConnect(event.getPlayers()));
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				} finally {
-					if (this.scheduledForceEnd != null && !this.scheduledForceEnd.isCancelled()) {
+					if (this.scheduledForceEnd != null) {
 						this.scheduledForceEnd.cancel();
 						this.scheduledForceEnd = null;
 					}
 
-					for (UUID uniqueId : this.disconnections.keySet()) {
-						BukkitTask task = this.disconnections.remove(uniqueId);
-						if (task != null) {
-							task.cancel();
-						}
+					Iterator<Map.Entry<UUID, BukkitTask>> iterator = this.disconnections.entrySet().iterator();
+					while (iterator.hasNext()) {
+						iterator.next().getValue().cancel();
+						iterator.remove();
 					}
 
 					this.maxPlayers = 0;
-					this.disconnections.clear();
 					this.minigame.unload();
 					this.minigame = null;
 				}
@@ -362,13 +398,13 @@ public class MinigameManager {
 				AsyncPlayerChatEvent event = (AsyncPlayerChatEvent) e;
 				Player player = event.getPlayer();
 				if (this.minigame.isInProgress() || this.minigame.isFinished()) {
-					if (this.minigame.isSpectator(player.getUniqueId())) {
-						event.setFormat(this.minigame.getSpectatorFormat(player));
+					if (this.minigame.isSpectator(uniqueId)) {
+						event.setFormat(StringUtil.SPECTATOR_PREFIX + ChatColor.RESET + this.minigame.getSpectatorFormat(player) + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + event.getMessage());
 					} else {
-						event.setFormat(this.minigame.getPlayerFormat(player));
+						event.setFormat(StringUtil.MINIGAME_PREFIX + ChatColor.RESET + this.minigame.getPlayerPrefix(player) + ChatColor.DARK_GRAY + ChatColor.BOLD + " » " + ChatColor.RESET + ChatColor.WHITE + event.getMessage());
 					}
 				} else {
-					event.setFormat(this.minigame.getLobbyFormat(event.getFormat()));
+					event.setFormat(StringUtil.LOBBY_PREFIX + ChatColor.RESET + event.getFormat());
 				}
 
 				Iterator<Player> iterator = event.getRecipients().iterator();
@@ -380,25 +416,15 @@ public class MinigameManager {
 						}
 
 						recipient = iterator.next();
-					} while (this.minigame.isPlayer(player.getUniqueId()) ? (this.minigame.isSpectator(player.getUniqueId()) ? this.minigame.isSpectator(recipient.getUniqueId()) : this.minigame.isPlayer(recipient.getUniqueId())) : !this.minigame.isPlayer(recipient.getUniqueId()));
+					} while (this.minigame.isPlayer(uniqueId) ? (this.minigame.isSpectator(uniqueId) ? this.minigame.isSpectator(recipient.getUniqueId()) : this.minigame.isPlayer(recipient.getUniqueId())) : !this.minigame.isPlayer(recipient.getUniqueId()));
 					iterator.remove();
 				}
-//
-//				Set<Player> recipients = new HashSet<>(event.getRecipients());
-//				Iterator<Player> iterator = recipients.iterator();
-//				while (true) {
-//					Player recipient;
-//					do {
-//						if (!iterator.hasNext()) {
-//							return;
-//						}
-//
-//						recipient = iterator.next();
-//					} while (this.minigame.isPlayer(player.getUniqueId()) ? (this.minigame.isSpectator(player.getUniqueId()) ? this.minigame.isSpectator(recipient.getUniqueId()) : this.minigame.isPlayer(recipient.getUniqueId())) : !this.minigame.isPlayer(recipient.getUniqueId()));
-//					event.getRecipients().remove(recipient);
-//				}
 			} else {
-				this.minigame.handleEvent(e);
+				if (this.minigame.isSpectator(uniqueId)) {
+					this.minigame.handleSpectatorEvent(e);
+				} else {
+					this.minigame.handlePlayerEvent(e);
+				}
 			}
 		}
 	}
