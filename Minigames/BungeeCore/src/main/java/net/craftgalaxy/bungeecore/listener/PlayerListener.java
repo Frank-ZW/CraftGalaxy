@@ -5,6 +5,7 @@ import net.craftgalaxy.bungeecore.data.PlayerData;
 import net.craftgalaxy.bungeecore.data.ServerSocketData;
 import net.craftgalaxy.bungeecore.data.manager.PlayerManager;
 import net.craftgalaxy.bungeecore.data.manager.ServerManager;
+import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.*;
@@ -26,15 +27,12 @@ public final class PlayerListener implements Listener {
 		}
 
 		ProxiedPlayer player = e.getPlayer();
-		ServerInfo server = PlayerManager.getInstance().getDisconnectionServer(player.getUniqueId());
-		if (server == null) {
-			return;
-		}
-
+		ServerInfo server = PlayerManager.getInstance().removeDisconnection(player.getUniqueId());
 		PlayerData playerData = PlayerManager.getInstance().getPlayerData(player);
-		if (playerData != null) {
+		if (server != null && playerData != null) {
 			e.setTarget(server);
 			playerData.setPlayerStatus(PlayerData.PlayerStatus.PLAYING);
+			this.plugin.getLogger().info(ChatColor.DARK_GRAY + "[" + ChatColor.RED + "Player Manager" + ChatColor.DARK_GRAY + "] " + ChatColor.GREEN + " Redirecting " + player.getName() + " to " + server.getName());
 		}
 	}
 
@@ -48,11 +46,11 @@ public final class PlayerListener implements Listener {
 
 	@EventHandler
 	public void onPostLogin(PostLoginEvent e) {
-		PlayerManager.getInstance().executor(() -> PlayerManager.getInstance().addPlayer(e.getPlayer()));
+		PlayerManager.getInstance().addPlayer(e.getPlayer());
 	}
 
 	@EventHandler
 	public void onPlayerDisconnect(PlayerDisconnectEvent e) {
-		PlayerManager.getInstance().executor(() -> PlayerManager.getInstance().removePlayer(e.getPlayer()));
+		PlayerManager.getInstance().removePlayer(e.getPlayer());
 	}
 }

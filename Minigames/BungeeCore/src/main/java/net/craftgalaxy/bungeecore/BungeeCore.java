@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import net.craftgalaxy.bungeecore.command.ForceEndCommand;
 import net.craftgalaxy.bungeecore.command.PlayCommand;
+import net.craftgalaxy.bungeecore.command.SpectateCommand;
 import net.craftgalaxy.bungeecore.data.manager.PlayerManager;
 import net.craftgalaxy.bungeecore.data.manager.ServerManager;
 import net.craftgalaxy.bungeecore.listener.PlayerListener;
@@ -37,7 +38,7 @@ public final class BungeeCore extends Plugin {
 	private AtomicInteger gameKey;
 	private int portNumber;
 
-	private final List<Command> commands = ImmutableList.of(new PlayCommand(this), new ForceEndCommand(this));
+	private final List<Command> commands = ImmutableList.of(new PlayCommand(this), new ForceEndCommand(this), new SpectateCommand(this));
 	private final List<Listener> listeners = ImmutableList.of(new PlayerListener(this));
 
 	private static BungeeCore instance;

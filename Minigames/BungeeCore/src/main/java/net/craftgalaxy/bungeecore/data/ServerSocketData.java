@@ -122,16 +122,8 @@ public class ServerSocketData implements Runnable {
 				} else if (object instanceof PacketPlayInStartCountdown) {
 					PacketPlayInStartCountdown packet = (PacketPlayInStartCountdown) object;
 					ServerManager.getInstance().addActiveServer(this, packet.getGameKey());
-				} else if (object instanceof PacketPlayInStartTeleport) {
-					PacketPlayInStartTeleport packet = (PacketPlayInStartTeleport) object;
-					for (UUID uniqueId : packet.getPlayers()) {
-						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
-						if (playerData != null) {
-							playerData.setPlayerStatus(PlayerData.PlayerStatus.PLAYING);
-						}
-					}
-				} else if (object instanceof PacketPlayInEndTeleport) {
-					PacketPlayInEndTeleport packet = (PacketPlayInEndTeleport) object;
+				} else if (object instanceof PacketPlayInEndMinigameConnect) {
+					PacketPlayInEndMinigameConnect packet = (PacketPlayInEndMinigameConnect) object;
 					for (UUID uniqueId : packet.getPlayers()) {
 						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
 						if (playerData != null) {
@@ -172,6 +164,7 @@ public class ServerSocketData implements Runnable {
 					PacketPlayInRequestDisconnect packet = (PacketPlayInRequestDisconnect) object;
 					this.receivedDisconnectRequest = true;
 					this.awaitingDisconnections.addAll(packet.getPlayers());
+					PlayerManager.getInstance().removeDisconnections(this.server);
 					if (this.awaitingDisconnections.isEmpty()) {
 						ServerManager.getInstance().disconnectServer(this);
 					} else {
@@ -205,9 +198,11 @@ public class ServerSocketData implements Runnable {
 					this.maxPlayers = packet.getMaxPlayers();
 				} else if (object instanceof PacketPlayInUpdatePlayerStatus) {
 					PacketPlayInUpdatePlayerStatus packet = (PacketPlayInUpdatePlayerStatus) object;
-					PlayerData playerData = PlayerManager.getInstance().getPlayerData(packet.getUniqueId());
-					if (playerData != null) {
-						playerData.setPlayerStatus(PlayerData.PlayerStatus.values()[packet.getStatus() % 4]);
+					for (UUID uniqueId : packet.getPlayers()) {
+						PlayerData playerData = PlayerManager.getInstance().getPlayerData(uniqueId);
+						if (playerData != null && packet.getStatus() < PlayerData.PlayerStatus.values().length) {
+							playerData.setPlayerStatus(PlayerData.PlayerStatus.values()[packet.getStatus()]);
+						}
 					}
 				} else if (object instanceof PacketPlayInDisconnectRemove) {
 					PacketPlayInDisconnectRemove packet = (PacketPlayInDisconnectRemove) object;
@@ -245,6 +240,7 @@ public class ServerSocketData implements Runnable {
 		MANHUNT("Manhunt"),
 		DEATH_SWAP("Death Swap"),
 		LOCK_OUT("Lock Out"),
+		SURVIVALIST("Survivalist"),
 		BOAT_RACE("Boat Race"),
 		INACTIVE("Unknown");
 

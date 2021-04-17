@@ -7,10 +7,7 @@ import net.craftgalaxy.bungeecore.BungeeCore;
 import net.craftgalaxy.bungeecore.data.PlayerData;
 import net.craftgalaxy.bungeecore.data.ServerSocketData;
 import net.craftgalaxy.minigameservice.bungee.StringUtil;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutConfirmDisconnect;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutCreateMinigame;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutForceEnd;
-import net.craftgalaxy.minigameservice.packet.impl.client.PacketPlayOutPromptDisconnect;
+import net.craftgalaxy.minigameservice.packet.impl.client.*;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
@@ -79,7 +76,7 @@ public class ServerManager {
 		instance.scheduler.cancel(instance.plugin);
 		for (ServerSocketData serverData : instance.minigames.values()) {
 			try {
-				serverData.sendPacket(new PacketPlayOutPromptDisconnect());
+				serverData.sendPacket(new PacketPlayOutPromptDisconnect(true));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -87,7 +84,7 @@ public class ServerManager {
 
 		for (ServerSocketData serverData : instance.lobbies.values()) {
 			try {
-				serverData.sendPacket(new PacketPlayOutPromptDisconnect());
+				serverData.sendPacket(new PacketPlayOutPromptDisconnect(true));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -279,11 +276,9 @@ public class ServerManager {
 				valid = maxPlayers == 1 ? sender.hasPermission(StringUtil.SOLO_MANHUNT_COMMAND) : maxPlayers >= 2 && maxPlayers <= 5;
 				break;
 			case "deathswap":
-			case "swap":
 				minigame = ServerSocketData.Minigames.DEATH_SWAP;
 				valid = maxPlayers >= 2 && maxPlayers <= 8;
 				break;
-			case "tbr":
 			case "boatrace":
 				minigame = ServerSocketData.Minigames.BOAT_RACE;
 				valid = maxPlayers >= 1 && maxPlayers <= 4;
@@ -291,6 +286,10 @@ public class ServerManager {
 			case "lockout":
 				minigame = ServerSocketData.Minigames.LOCK_OUT;
 				valid = maxPlayers >= 1 && maxPlayers <= 4;
+				break;
+			case "survivalist":
+				minigame = ServerSocketData.Minigames.SURVIVALIST;
+				valid = maxPlayers >= 2 && maxPlayers <= 5;
 				break;
 			default:
 				sender.sendMessage(new TextComponent(ChatColor.RED + "That minigame has not been added to the server. To help the server grow, consider making a small donation through our webstore."));
@@ -303,6 +302,29 @@ public class ServerManager {
 		}
 
 		return minigame;
+	}
+
+	public void handleSpectator(@NotNull PlayerData senderData, @NotNull PlayerData playerData) {
+		ProxiedPlayer sender = senderData.getPlayer();
+		ProxiedPlayer player = playerData.getPlayer();
+		if (!playerData.isPlaying()) {
+			sender.sendMessage(new TextComponent(ChatColor.RED + playerData.getName() + " is not in an active minigame."));
+			return;
+		}
+
+		ServerInfo server = player.getServer().getInfo();
+		ServerSocketData serverData = this.getServerData(server);
+		if (serverData == null) {
+			sender.sendMessage(new TextComponent(ChatColor.RED + "An error occurred while sending you to the target server."));
+			return;
+		}
+
+		try {
+			serverData.sendPacket(new PacketPlayOutQueueSpectator(senderData.getUniqueId(), playerData.getUniqueId()));
+			serverData.sendServer(sender);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void queueServer(@NotNull ServerSocketData serverData, boolean reset) {

@@ -50,6 +50,10 @@ public class PlayerData {
 		return this.status == PlayerStatus.SPECTATING;
 	}
 
+	public boolean isInactive() {
+		return this.status == PlayerStatus.INACTIVE;
+	}
+
 	public enum PlayerStatus {
 		PLAYING,
 		QUEUING,
