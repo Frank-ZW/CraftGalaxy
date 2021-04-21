@@ -6,17 +6,17 @@ import net.craftgalaxy.mavic.util.location.PlayerLocation;
 
 public class FlyA extends PositionCheck {
 
-	public FlyA() {
-		super("Fly A", 18, CheckType.DEVELOPMENT);
+	public FlyA(PlayerData playerData) {
+		super(playerData, "Fly A", 24, CheckType.DEVELOPMENT);
 	}
 
 	@Override
-	public void handle(PlayerData playerData, PlayerLocation to, PlayerLocation from, long timestamp) {
-		if (!playerData.isAllowedFlight() && !playerData.isInClimable() && !playerData.isInLiquid() && playerData.getLiquidTicks() >= 20 && !playerData.isInWeb() && !playerData.isInVehicle() && !playerData.isOnGround()) {
+	public void handle(PlayerLocation to, PlayerLocation from, long timestamp) {
+		if (!this.playerData.isAllowedFlight() && !this.playerData.isInClimable() && !this.playerData.isInLiquid() && this.playerData.getLiquidTicks() >= 20 && !this.playerData.isInWeb() && !this.playerData.isInVehicle() && !this.playerData.isOnGround()) {
 			double distXZ = to.groundDistanceSquared(from);
 			double distY = to.getY() - from.getY();
 			if (distY == 0.0D && distXZ > 0.0D) {
-				this.handleViolation(playerData);
+				this.handleViolation();
 			} else {
 				this.decreaseViolation(0.05D);
 			}

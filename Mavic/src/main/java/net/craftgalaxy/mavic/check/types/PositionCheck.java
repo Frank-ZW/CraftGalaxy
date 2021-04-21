@@ -6,9 +6,9 @@ import net.craftgalaxy.mavic.util.location.PlayerLocation;
 
 public abstract class PositionCheck extends Check {
 
-	public PositionCheck(String name, int maxViolations, CheckType checkType) {
-		super(name, maxViolations, checkType);
+	public PositionCheck(PlayerData playerData, String name, int maxViolations, CheckType checkType) {
+		super(playerData, name, maxViolations, checkType);
 	}
 
-	public abstract void handle(PlayerData playerData, PlayerLocation to, PlayerLocation from, long timestamp);
+	public abstract void handle(PlayerLocation to, PlayerLocation from, long timestamp);
 }

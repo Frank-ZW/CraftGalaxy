@@ -31,7 +31,8 @@ public class PacketManager {
 			PacketType.Play.Client.USE_ENTITY,
 			PacketType.Play.Client.BLOCK_DIG,
 			PacketType.Play.Client.BLOCK_PLACE,
-			PacketType.Play.Client.ENTITY_ACTION
+			PacketType.Play.Client.ENTITY_ACTION,
+			PacketType.Play.Client.HELD_ITEM_SLOT
 	);
 	private final Set<PacketType> outgoing = Sets.newHashSet(
 			PacketType.Play.Server.KEEP_ALIVE,
@@ -56,6 +57,7 @@ public class PacketManager {
 		this.registerProtocol(MPacketPlayInBlockDig.class, PacketType.Play.Client.BLOCK_DIG);
 		this.registerProtocol(MPacketPlayInBlockPlace.class, PacketType.Play.Client.BLOCK_PLACE);
 		this.registerProtocol(MPacketPlayInEntityAction.class, PacketType.Play.Client.ENTITY_ACTION);
+		this.registerProtocol(MPacketPlayInHeldItemSlot.class, PacketType.Play.Client.HELD_ITEM_SLOT);
 
 		this.registerProtocol(MPacketPlayOutEntityVelocity.class, PacketType.Play.Server.ENTITY_VELOCITY);
 		this.registerProtocol(MPacketPlayOutKeepAlive.class, PacketType.Play.Server.KEEP_ALIVE);

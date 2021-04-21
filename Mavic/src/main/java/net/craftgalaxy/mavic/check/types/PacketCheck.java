@@ -5,9 +5,10 @@ import net.craftgalaxy.mavic.data.PlayerData;
 import net.craftgalaxy.mavic.packet.AbstractPacket;
 
 public abstract class PacketCheck extends Check {
-		public PacketCheck(String name, int maxViolations, CheckType checkType) {
-			super(name, maxViolations, checkType);
-		}
 
-		public abstract void handle(PlayerData playerData, AbstractPacket abstractPacket, long timestamp);
+	public PacketCheck(PlayerData playerData, String name, int maxViolations, CheckType checkType) {
+		super(playerData, name, maxViolations, checkType);
+	}
+
+	public abstract void handle(AbstractPacket abstractPacket, long timestamp);
 }

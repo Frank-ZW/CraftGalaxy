@@ -15,7 +15,7 @@ public final class ToggleCommand extends AbstractMavicCommand {
 		Player player = (Player) sender;
 		PlayerData playerData = PlayerManager.getInstance().getPlayerData(player);
 		if (playerData == null) {
-			player.sendMessage(StringUtil.ERROR_GETTING_PLAYERDATA);
+			player.sendMessage(StringUtil.ERROR_GETTING_PLAYER_DATA);
 			return;
 		}
 

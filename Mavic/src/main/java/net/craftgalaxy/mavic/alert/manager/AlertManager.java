@@ -38,7 +38,7 @@ public class AlertManager {
 			PlayerAlertEvent event = new PlayerAlertEvent(playerData.getPlayer(), check, playerData.getPing(), violations, data);
 			Bukkit.getPluginManager().callEvent(event);
 			if (!event.isCancelled()) {
-				Alert alert = new Alert(playerData.getName(), check.getName(), check.getCheckType(), data);
+				Alert alert = new Alert(playerData.getName(), check.getDisplayName(), check.getCheckType(), data);
 				playerData.registerAlert(alert);
 			}
 

@@ -93,7 +93,7 @@ public class PlayerData {
 		this.player = player;
 		this.name = player.getName();
 		this.uniqueId = player.getUniqueId();
-		this.checkLoader = CheckLoader.getInstance();
+		this.checkLoader = new CheckLoader(this);
 		this.location = PlayerLocation.fromBukkitLocation(player.getLocation());
 		this.lastLocation = this.location.clone();
 		this.lastLastLocation = this.lastLocation;
@@ -109,13 +109,7 @@ public class PlayerData {
 	}
 
 	public void registerPlayerAttack(UUID targetUuid, Location location) {
-		List<Location> locations = this.targetAttackMap.get(targetUuid);
-		if (locations == null) {
-			locations = new ArrayList<>();
-		}
-
-		locations.add(location);
-		this.targetAttackMap.put(targetUuid, locations);
+		this.targetAttackMap.computeIfAbsent(targetUuid, v -> new ArrayList<>()).add(location);
 	}
 
 	public void ignoreCheckAlerts(String checkName) {
@@ -234,6 +228,10 @@ public class PlayerData {
 		return this.underBlock;
 	}
 
+	public long getLastFlyingTimestamp() {
+		return this.lastFlyingTimestamp;
+	}
+
 	public long getLastFastTimestamp() {
 		return this.lastFastTimestamp;
 	}
@@ -321,11 +319,11 @@ public class PlayerData {
 				boolean moved = !this.location.sameLocation(this.lastLocation);
 				boolean rotated = !this.location.sameDirection(this.lastLocation);
 				if (moved) {
-					this.checkLoader.getPositionChecks().stream().filter(Check::isEnabled).forEach(check -> check.handle(this, this.location, this.lastLocation, now));
+					this.checkLoader.getPositionChecks().stream().filter(Check::isEnabled).forEach(check -> check.handle(this.location, this.lastLocation, now));
 				}
 
 				if (rotated) {
-					this.checkLoader.getRotationChecks().stream().filter(Check::isEnabled).forEach(check -> check.handle(this, this.location, this.lastLocation, now));
+					this.checkLoader.getRotationChecks().stream().filter(Check::isEnabled).forEach(check -> check.handle(this.location, this.lastLocation, now));
 				}
 			} else if (abstractPacket instanceof APacketPlayInUseEntity) {
 				APacketPlayInUseEntity packet = (APacketPlayInUseEntity) abstractPacket;
@@ -394,6 +392,6 @@ public class PlayerData {
 			}
 		}
 
-		this.checkLoader.getPacketChecks().parallelStream().filter(Check::isEnabled).forEach(check -> check.handle(this, abstractPacket, System.currentTimeMillis()));
+		this.checkLoader.getPacketChecks().stream().filter(Check::isEnabled).forEach(check -> check.handle(abstractPacket, System.currentTimeMillis()));
 	}
 }

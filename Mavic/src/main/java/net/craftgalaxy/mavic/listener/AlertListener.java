@@ -25,11 +25,11 @@ public final class AlertListener implements Listener {
 	public void onPlayerAlert(PlayerAlertEvent e) {
 		Player player = e.getPlayer();
 		Check check = e.getCheck();
-		String alert = ChatColor.DARK_GRAY + "[" + ChatColor.BLUE + "Mavic" + ChatColor.DARK_GRAY + "] " + ChatColor.RED + player.getName() + ChatColor.DARK_GRAY + " [" + ChatColor.YELLOW + e.getPing() + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " is suspected of using " + ChatColor.RED + check.getName() + ChatColor.DARK_GRAY + " [" + ChatColor.RED + e.getVl() + ChatColor.DARK_GRAY + "]";
+		String alert = ChatColor.DARK_GRAY + "[" + ChatColor.BLUE + "Mavic" + ChatColor.DARK_GRAY + "] " + ChatColor.RED + player.getName() + ChatColor.DARK_GRAY + " [" + ChatColor.YELLOW + e.getPing() + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + " is suspected of using " + ChatColor.RED + check.getDisplayName() + ChatColor.DARK_GRAY + " [" + ChatColor.RED + e.getVl() + ChatColor.DARK_GRAY + "]";
 		Bukkit.getConsoleSender().sendMessage(alert);
 		Bukkit.getOnlinePlayers().parallelStream().filter(other -> {
 			PlayerData otherData = PlayerManager.getInstance().getPlayerData(other);
-			return other.hasPermission(StringUtil.NOTIFY_ALERT_PERMISSION) && otherData != null && otherData.isReceiveAlerts(check.getName());
+			return other.hasPermission(StringUtil.NOTIFY_ALERT_PERMISSION) && otherData != null && otherData.isReceiveAlerts(check.getDisplayName());
 		}).forEach(other -> other.sendMessage(alert));
 	}
 

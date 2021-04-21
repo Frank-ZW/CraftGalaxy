@@ -23,7 +23,6 @@ public final class Mavic extends JavaPlugin {
 	public void onEnable() {
 		instance = this;
 		NMSManager.getInstance();
-		CheckLoader.enable();
 		PacketManager.enable();
 		PlayerManager.enable();
 		AlertManager.enable(this);
@@ -44,7 +43,6 @@ public final class Mavic extends JavaPlugin {
 		AlertManager.disable();
 		PlayerManager.disable();
 		PacketManager.disable();
-		CheckLoader.disable();
 		instance = null;
 	}
 

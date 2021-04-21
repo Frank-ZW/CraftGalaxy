@@ -1,13 +1,12 @@
 package net.craftgalaxy.mavic.packet.manager;
 
 import net.craftgalaxy.mavic.util.location.MutableBlockLocation;
-import net.craftgalaxy.mavic.util.location.PlayerLocation;
-import net.minecraft.server.v1_16_R2.BlockPosition;
-import net.minecraft.server.v1_16_R2.WorldServer;
+import net.minecraft.server.v1_16_R1.BlockPosition;
+import net.minecraft.server.v1_16_R1.WorldServer;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_16_R2.CraftWorld;
-import org.bukkit.craftbukkit.v1_16_R2.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.v1_16_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_16_R1.util.CraftMagicNumbers;
 import org.jetbrains.annotations.NotNull;
 
 public class NMSManager {
